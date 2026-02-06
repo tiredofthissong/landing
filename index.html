@@ -143,7 +143,7 @@
             line-height: 1.8;
         }
 
-        /* Company Logos Section (Surprise Feature!) */
+        /* Company Logos Section */
         .companies-section {
             margin-top: 40px;
             padding-top: 35px;
@@ -162,12 +162,12 @@
 
         .companies-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 25px;
             align-items: center;
         }
 
-        .company-badge {
+        .company-logo {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -176,26 +176,28 @@
             border-radius: 8px;
             border: 1px solid #e0ddd9;
             transition: all 0.3s;
-            min-height: 80px;
-            text-align: center;
+            min-height: 90px;
         }
 
-        .company-badge:hover {
+        .company-logo:hover {
             background: #ffffff;
             border-color: #c77d58;
             transform: translateY(-3px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.06);
         }
 
-        .company-name {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #4a4a4a;
-            transition: color 0.3s;
+        .company-logo img {
+            max-width: 100%;
+            max-height: 50px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            filter: grayscale(100%) opacity(0.7);
+            transition: filter 0.3s;
         }
 
-        .company-badge:hover .company-name {
-            color: #c77d58;
+        .company-logo:hover img {
+            filter: grayscale(0%) opacity(1);
         }
 
         /* Contact Form */
@@ -328,6 +330,12 @@
                 gap: 15px;
             }
 
+            .company-logo:nth-child(5) {
+                grid-column: 1 / -1;
+                max-width: 50%;
+                margin: 0 auto;
+            }
+
             .btn-linkedin {
                 padding: 14px 30px;
                 font-size: 1rem;
@@ -369,21 +377,24 @@
             <h2>About</h2>
             <p>I simplify complexity through strong communication and leadership. Specializing in learning and development, I build systems that scale—transforming siloed training into cohesive programs that drive real adoption. My work combines data-driven strategy with human-centered execution to make learning stick.</p>
             
-            <!-- SURPRISE FEATURE: Company Badges -->
+            <!-- Company Logos -->
             <div class="companies-section">
-                <div class="companies-label">Experience With</div>
+                <div class="companies-label">Trusted By</div>
                 <div class="companies-grid">
-                    <div class="company-badge">
-                        <span class="company-name">Docebo</span>
+                    <div class="company-logo">
+                        <img src="docebo-logo.png" alt="Docebo">
                     </div>
-                    <div class="company-badge">
-                        <span class="company-name">ADP</span>
+                    <div class="company-logo">
+                        <img src="adp-logo.png" alt="ADP">
                     </div>
-                    <div class="company-badge">
-                        <span class="company-name">Freshworks</span>
+                    <div class="company-logo">
+                        <img src="freshworks-logo.png" alt="Freshworks">
                     </div>
-                    <div class="company-badge">
-                        <span class="company-name">Spekit</span>
+                    <div class="company-logo">
+                        <img src="spekit-logo.png" alt="Spekit">
+                    </div>
+                    <div class="company-logo">
+                        <img src="mass-dor-logo.png" alt="Massachusetts Department of Revenue">
                     </div>
                 </div>
             </div>
