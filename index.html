@@ -171,21 +171,32 @@
             0%, 100% { opacity: .62; text-shadow: none; }
             50% { opacity: 1; text-shadow: 0 0 14px rgba(194,112,61,.5); }
         }
-        /* Pop wave: letters cascade with a springy overshoot, bloom accent, settle back.
-           Driven by JS (.w.pop), one word at a time, only while the line is on screen. */
-        .path .w { display: inline-block; }
+        /* Pop wave: 3D flip-lift cascade with blur snap, accent bloom and glow.
+           JS adds .pop to one word at a time (and .fire to the arrow feeding it). */
+        .path .w { display: inline-block; perspective: 700px; }
         .path .ch {
             display: inline-block;
-            will-change: transform;
-            transition: transform .55s cubic-bezier(.34,1.56,.64,1),
-                        color .45s ease,
-                        text-shadow .55s ease;
-            transition-delay: calc(var(--i) * 26ms);
+            will-change: transform, filter, opacity;
+            transform-origin: 50% 100%;
         }
         .path .w.pop .ch {
-            transform: translateY(-.12em) scale(1.1);
-            color: var(--accent-deep);
-            text-shadow: 0 8px 26px rgba(194,112,61,.38);
+            animation: chPop .95s cubic-bezier(.3,1.2,.4,1) both;
+            animation-delay: calc(var(--i) * 34ms);
+        }
+        @keyframes chPop {
+            0%   { transform: translateY(.05em) scale(.96); filter: blur(3px); opacity: .5; }
+            28%  { transform: translateY(-.24em) rotateX(-22deg) scale(1.18); filter: blur(0); opacity: 1;
+                   color: var(--accent-deep); text-shadow: 0 14px 34px rgba(194,112,61,.55); }
+            55%  { transform: translateY(-.05em) scale(1.04);
+                   color: var(--accent-deep); text-shadow: 0 6px 18px rgba(194,112,61,.28); }
+            78%  { transform: translateY(.015em) scale(1); color: inherit; text-shadow: none; }
+            100% { transform: none; filter: blur(0); opacity: 1; color: inherit; text-shadow: none; }
+        }
+        .path .arrow.fire { animation: arrowFire .9s ease-out; }
+        @keyframes arrowFire {
+            0%   { opacity: .6; transform: scaleX(1); }
+            30%  { opacity: 1; transform: scaleX(1.4); text-shadow: 0 0 18px rgba(194,112,61,.75); }
+            100% { opacity: .62; transform: scaleX(1); text-shadow: none; }
         }
 
         .descriptor {
@@ -356,8 +367,8 @@
         .footer-text { font-size: .85rem; color: var(--faint); }
 
         /* Scroll reveal */
-        .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.22,.61,.36,1); }
-        .reveal.in { opacity: 1; transform: none; }
+        .reveal { opacity: 0; transform: translateY(48px) scale(.985); filter: blur(10px); transition: opacity .9s ease, transform 1.05s cubic-bezier(.16,1,.3,1), filter .9s ease; }
+        .reveal.in { opacity: 1; transform: none; filter: blur(0); }
         .reveal[data-delay="1"] { transition-delay: .1s; }
         .reveal[data-delay="2"] { transition-delay: .2s; }
         .reveal[data-delay="3"] { transition-delay: .3s; }
@@ -389,8 +400,9 @@
 
         @media (prefers-reduced-motion: reduce) {
             .aurora { animation: none; }
-            .reveal { opacity: 1; transform: none; transition: none; }
+            .reveal { opacity: 1; transform: none; filter: none; transition: none; }
             .path > span, .path .arrow { animation: none; }
+            .path .w.pop .ch, .path .arrow.fire { animation: none; }
             html { scroll-behavior: auto; }
         }
     </style>
@@ -653,6 +665,7 @@
             words.forEach(w=>{
                 const text = w.textContent;
                 w.setAttribute('aria-label', text);
+                w.dataset.len = Array.from(text).length;
                 w.innerHTML = Array.from(text).map((c,i)=>
                     '<span class="ch" aria-hidden="true" style="--i:'+i+'">'+c+'</span>'
                 ).join('');
@@ -664,12 +677,16 @@
                 while(running){
                     for(const w of words){
                         if(!running) return;
+                        const prev = w.previousElementSibling;
+                        const arrow = (prev && prev.classList.contains('arrow')) ? prev : null;
                         w.classList.add('pop');
-                        await wait(780);
+                        if(arrow) arrow.classList.add('fire');
+                        await wait(950 + w.dataset.len*34 + 140);
                         w.classList.remove('pop');
-                        await wait(880);
+                        if(arrow) arrow.classList.remove('fire');
+                        await wait(420);
                     }
-                    await wait(1400);
+                    await wait(1500);
                 }
             }
             new IntersectionObserver(entries=>{
