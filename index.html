@@ -647,7 +647,7 @@
             const SHOW_T = location.search.indexOf('showtargets')>=0;   /* debug: red dots on targets */
 
             const WORDS = [
-                { text:'IMPLEMENTATION', canvasFont:px=>'700 '+px+'px "Space Grotesk", sans-serif', spacing:'0.12em' },
+                { text:'IMPLEMENTATION', canvasFont:px=>'700 '+px+'px "Space Grotesk", sans-serif', spacing:'0.18em' },
                 { text:'Automation',     canvasFont:px=>'700 '+px+'px "JetBrains Mono", monospace',   spacing:'0px' },
                 { text:'Adoption',       canvasFont:px=>'italic 900 '+px+'px "Fraunces", serif',       spacing:'0px' },
             ];
@@ -792,11 +792,11 @@
                 if(ph==='condense'){
                     if(advance!==false && started){ wordIndex=(wordIndex+1)%WORDS.length; assignTargets(wordIndex); }
                     started=true;
-                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random()*0.65;
+                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random()*0.6;
                 }else if(ph==='degrade'){
                     for(let i=0;i<particles.length;i++){
                         const p=particles[i];
-                        p.rel=Math.random()*0.65; p.released=false;
+                        p.rel=Math.random()*0.6; p.released=false;
                     }
                 }
             }
@@ -815,22 +815,26 @@
             }
 
             function steerOne(p, dt, tSec, stiff, damp){
-                let ax=((p.bx+ox)-p.x)*stiff-p.vx*damp;
-                let ay=((p.by+oy)-p.y)*stiff-p.vy*damp;
-                ax+=Math.sin(p.y*0.006+tSec*0.9)*34*p.drift;
-                ay+=Math.cos(p.x*0.006-tSec*0.7)*34*p.drift;
+                const tx=(p.bx+ox)-p.x, ty=(p.by+oy)-p.y;
+                const dist=Math.sqrt(tx*tx+ty*ty);
+                let ax=tx*stiff-p.vx*damp;
+                let ay=ty*stiff-p.vy*damp;
+                ax+=Math.sin(p.y*0.006+tSec*0.9)*16*p.drift;
+                ay+=Math.cos(p.x*0.006-tSec*0.7)*16*p.drift;
                 p.vx+=ax*dt; p.vy+=ay*dt;
-                const maxV=1100*dpr, s2=p.vx*p.vx+p.vy*p.vy;
+                const maxV=Math.min(850*dpr, 120*dpr+dist*6);   /* brake on arrival: no rushing */
+                const s2=p.vx*p.vx+p.vy*p.vy;
                 if(s2>maxV*maxV){ const s=maxV/Math.sqrt(s2); p.vx*=s; p.vy*=s; }
                 p.x+=p.vx*dt; p.y+=p.vy*dt;
             }
+            const smoother=t=>t*t*t*(t*(t*6-15)+10);
 
             /* drift inside the soft region; the "lost" state stays near the line */
             function driftRegion(p, dt, tSec){
                 const ccx=RCX+ox, ccy=RCY+oy;
                 const dx=p.x-ccx, dy=p.y-ccy;
-                let ax=Math.sin(p.y*0.004+tSec*0.6)*36-p.vx*0.9;
-                let ay=Math.cos(p.x*0.004-tSec*0.5)*36-p.vy*0.9;
+                let ax=Math.sin(p.y*0.004+tSec*0.6)*24-p.vx*0.9;
+                let ay=Math.cos(p.x*0.004-tSec*0.5)*24-p.vy*0.9;
                 const ox2=Math.abs(dx)-RW, oy2=Math.abs(dy)-RH;
                 if(ox2>0) ax-=Math.sign(dx)*ox2*3;
                 if(oy2>0) ay-=Math.sign(dy)*oy2*3;
@@ -840,10 +844,11 @@
 
             /* gather: cells join the word progressively, mirroring the decay */
             function condenseUpdate(dt, tSec, t){
+                const je=smoother(clamp01(t));
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.02) continue;
-                    if(t>=p.join) steerOne(p,dt,tSec,30,6.5);
+                    if(je>=p.join) steerOne(p,dt,tSec,30,8);
                     else driftRegion(p,dt,tSec);
                 }
             }
@@ -855,12 +860,12 @@
                     const p=particles[i];
                     if(p.fade<0.02) continue;
                     if(!p.released){
-                        if(t>=p.rel){
+                        if(smoother(clamp01(t))>=p.rel){
                             p.released=true;
                             const dx=p.x-cx, dy=p.y-cy, d=Math.hypot(dx,dy)||1;
-                            const sp=rnd(25,70)*dpr;
-                            p.vx=dx/d*sp+rnd(-30,30)*dpr;
-                            p.vy=dy/d*sp+rnd(-30,30)*dpr;
+                            const sp=rnd(20,55)*dpr;
+                            p.vx=dx/d*sp+rnd(-20,20)*dpr;
+                            p.vy=dy/d*sp+rnd(-20,20)*dpr;
                         }else{
                             p.vx+=(((p.bx+ox)-p.x)*36-p.vx*16)*dt;
                             p.vy+=(((p.by+oy)-p.y)*36-p.vy*16)*dt;
@@ -921,7 +926,7 @@
                     twA+=(0.06-twA)*Math.min(1,dt*5);
                     for(let i=0;i<particles.length;i++){
                         const p=particles[i];
-                        if(p.fade>0.02) steerOne(p,dt,tSec,34,15);
+                        if(p.fade>0.02) steerOne(p,dt,tSec,44,16);
                     }
                     drawActive(tSec);
                 }else if(phase==='hold'){
@@ -929,7 +934,7 @@
                     particleAlpha=1;
                     for(let i=0;i<particles.length;i++){
                         const p=particles[i];
-                        if(p.fade>0.02) steerOne(p,dt,tSec,40,18);   /* the word sits, alive but legible */
+                        if(p.fade>0.02) steerOne(p,dt,tSec,44,20);   /* the word sits, alive but legible */
                     }
                     drawActive(tSec);
                 }else if(phase==='degrade'){
