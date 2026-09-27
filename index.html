@@ -638,12 +638,16 @@
             });
         });
 
-        /* — path particle morph XIII: real type + soft cellular field (bigger, gentler blobs; tighter band).
-           UX read: the hero must SAY three words — legibility is the product.
-           So typography does the talking (real canvas type, always crisp) and the
-           cells do the living: they rest on the letterforms, stream through each
-           melt, and drift around the word. The eye reads "letters become cells"
-           without legibility ever being at risk. One clock, no phase machine. — */
+        /* — path morph XIV: the reset.
+           Best-practice pass (cf. the good CSS-text-animation work: one idea per
+           layer, stagger and choreography instead of simulation).
+           LAYER 1 — the words: real canvas type, always crisp, crossfading on a
+             6-second loop through all three words (1.4s hold + 0.6s melt each).
+             Three unmistakably different faces. Legibility is the product.
+           LAYER 2 — the field: ~55 large, ultra-soft blobs on slow sine drift
+             behind the type. No springs, no turbulence, no twinkle, no agents —
+             overlapping low-alpha blobs read as one living cellular medium.
+           Reduced motion / no JS: the static markup below the canvas. — */
         (function(){
             const stage=document.getElementById('pathStage');
             const canvas=document.getElementById('pathCanvas');
@@ -656,44 +660,30 @@
                 { text:'Automation',     font:px=>'700 '+px+'px "JetBrains Mono", monospace',   spacing:'0px' },
                 { text:'Adoption',       font:px=>'italic 900 '+px+'px "Fraunces", serif',       spacing:'0px' },
             ];
-            const CYCLE=6000, HOLD_END=4200;   /* 4.2s of readable type, 1.8s melt */
-            const N_ANCHOR=240, N_AMBIENT=520;
-            const INK='27,25,23', RUST='194,112,61';
-            const ctx=canvas.getContext('2d');
+            /* OG pacing: about six seconds through all three words. */
+            const WORD_MS=2000, MELT_MS=600, LOOP_MS=WORD_MS*WORDS.length;
+            const N_BLOBS=55;
 
+            const ctx=canvas.getContext('2d');
             let W=0,H=0,dpr=1,px=48;
-            let anchors=[], parts=[], SPRITES=[];
-            let visible=false, rafId=null, inited=false, lastT=0, t0=0;
+            let blobs=[], sprites=[];
+            let visible=false, rafId=null, inited=false, t0=0;
+
             const clamp01=v=>v<0?0:v>1?1:v;
             const smoother=t=>{ t=clamp01(t); return t*t*t*(t*(t*6-15)+10); };
             const rnd=(a,b)=>a+Math.random()*(b-a);
-            const tri=()=>((Math.random()+Math.random()+Math.random())/3)*2-1;
 
-            /* cellular sprites: soft amoeba blobs with a faint nucleus, nothing geometric */
-            function blobSprite(core){
-                const S=48, s=document.createElement('canvas'); s.width=s.height=S;
+            /* One ultra-soft sprite per tone: wide falloff, gentle core. */
+            function softSprite(core){
+                const S=128, s=document.createElement('canvas'); s.width=s.height=S;
                 const c=s.getContext('2d');
-                const lobes=3+((Math.random()*2)|0);
-                for(let i=0;i<lobes;i++){
-                    const a=Math.random()*6.2832, rr=S*(0.10+Math.random()*0.08);
-                    const lx=S/2+Math.cos(a)*S*0.10, ly=S/2+Math.sin(a)*S*0.10, rad=rr*2.2;
-                    const g=c.createRadialGradient(lx,ly,0,lx,ly,rad);
-                    g.addColorStop(0,'rgba('+core+',0.55)');
-                    g.addColorStop(0.45,'rgba('+core+',0.28)');
-                    g.addColorStop(1,'rgba('+core+',0)');
-                    c.fillStyle=g; c.beginPath(); c.arc(lx,ly,rad,0,6.2832); c.fill();
-                }
-                const nx=S/2+rnd(-3,3), ny=S/2+rnd(-3,3), nr=S*0.10;
-                const ng=c.createRadialGradient(nx,ny,0,nx,ny,nr);
-                ng.addColorStop(0,'rgba('+core+',0.3)');
-                ng.addColorStop(1,'rgba('+core+',0)');
-                c.fillStyle=ng; c.beginPath(); c.arc(nx,ny,nr,0,6.2832); c.fill();
+                const g=c.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);
+                g.addColorStop(0,'rgba('+core+',0.34)');
+                g.addColorStop(0.45,'rgba('+core+',0.16)');
+                g.addColorStop(0.75,'rgba('+core+',0.05)');
+                g.addColorStop(1,'rgba('+core+',0)');
+                c.fillStyle=g; c.fillRect(0,0,S,S);
                 return s;
-            }
-            function buildSprites(){
-                SPRITES=[];
-                for(let i=0;i<6;i++) SPRITES.push(blobSprite(INK));
-                for(let i=0;i<3;i++) SPRITES.push(blobSprite(RUST));
             }
 
             function lineCenter(){
@@ -701,7 +691,7 @@
                 return [r.left+r.width/2, r.top+r.height/2];
             }
 
-            /* fit the biggest word to the viewport; the type is the sub-hero */
+            /* Fit the biggest word to the viewport; the type is the sub-hero. */
             function measureWordFont(){
                 const lineFs=parseFloat(getComputedStyle(lineEl).fontSize)||20;
                 let size=lineFs*2;
@@ -721,157 +711,80 @@
                 px=size;
             }
 
-            /* sample each word's letterforms once; anchors are relative to line center */
-            function sampleAnchors(){
-                const vw=Math.max(2,window.innerWidth), vh=Math.max(2,window.innerHeight);
-                const off=document.createElement('canvas');
-                off.width=vw; off.height=vh;
-                const o=off.getContext('2d');
-                const cx=vw/2, cy=vh/2;
-                anchors=WORDS.map(w=>{
-                    o.clearRect(0,0,vw,vh);
-                    o.font=w.font(px);
-                    try{ o.letterSpacing=w.spacing; }catch(e){}
-                    o.textAlign='center'; o.textBaseline='middle';
-                    o.fillStyle='#fff';
-                    o.fillText(w.text,cx,cy+px*0.04);
-                    try{ o.letterSpacing='0px'; }catch(e){}
-                    const d=o.getImageData(0,0,vw,vh).data;
-                    const pts=[], ST=5;
-                    for(let y=0;y<vh;y+=ST) for(let x=0;x<vw;x+=ST)
-                        if(d[(y*vw+x)*4+3]>100) pts.push([x-cx,y-cy]);
-                    if(pts.length>400){
-                        const th=[], st=pts.length/400;
-                        for(let i=0;i<pts.length;i+=st) th.push(pts[Math.floor(i)]);
-                        return th;
-                    }
-                    return pts.length?pts:[[0,0]];
-                });
-            }
-
             function build(){
                 dpr=Math.min(2,window.devicePixelRatio||1);
                 const vw=window.innerWidth, vh=window.innerHeight;
                 W=Math.max(2,Math.round(vw*dpr)); H=Math.max(2,Math.round(vh*dpr));
                 canvas.width=W; canvas.height=H;
-                buildSprites();
+                sprites=[softSprite('27,25,23'),softSprite('27,25,23'),
+                         softSprite('27,25,23'),softSprite('194,112,61')];
                 measureWordFont();
-                sampleAnchors();
-                const lc=lineCenter();
-                const RW=Math.min(vw/2-20,300), RH=95;
-                parts=[];
-                for(let i=0;i<N_ANCHOR;i++) parts.push({
-                    anchor:true, ai:(Math.random()*400)|0,
-                    x:lc[0]+tri()*RW, y:lc[1]+tri()*RH, vx:0, vy:0,
-                    sp:SPRITES[(Math.random()*SPRITES.length)|0],
-                    sc:rnd(0.55,1.05), rot:rnd(0,6.283), vr:rnd(-0.9,0.9),
-                    tw:rnd(0,6.283), tws:rnd(1.2,2.6), drift:rnd(0.6,1)
-                });
-                for(let i=0;i<N_AMBIENT;i++) parts.push({
-                    anchor:false,
-                    x:lc[0]+tri()*RW, y:lc[1]+tri()*RH, vx:0, vy:0,
-                    sp:SPRITES[(Math.random()*SPRITES.length)|0],
-                    sc:rnd(0.55,1.05), rot:rnd(0,6.283), vr:rnd(-0.9,0.9),
-                    tw:rnd(0,6.283), tws:rnd(1.2,2.6), drift:rnd(0.6,1)
-                });
+                /* Blob anchors are relative to the line center, re-resolved
+                   every frame so the field tracks the word while scrolling. */
+                const rx=Math.min(vw/2-40,340), ry=110;
+                blobs=[];
+                for(let i=0;i<N_BLOBS;i++){
+                    const a=Math.random()*6.2832, rr=Math.sqrt(Math.random());
+                    blobs.push({
+                        dx:Math.cos(a)*rr*rx, dy:Math.sin(a)*rr*ry,
+                        r:rnd(18,44),
+                        sp:sprites[(Math.random()*sprites.length)|0],
+                        ph:rnd(0,6.2832), sp1:rnd(0.14,0.32), sp2:rnd(0.12,0.28),
+                        ax:rnd(14,30), ay:rnd(10,24),
+                        al:rnd(0.08,0.20), br:rnd(0,6.2832), brs:rnd(0.2,0.5)
+                    });
+                }
                 t0=performance.now();
             }
 
             function frame(now){
                 if(!visible){ rafId=null; return; }
                 rafId=requestAnimationFrame(frame);
-                const dt=Math.min(0.05,lastT?(now-lastT)/1000:0.016); lastT=now;
-                const tSec=now*0.001;
+                const t=now*0.001;
                 const el=Math.max(0,now-t0);
-                const lt=el%CYCLE;
-                const wi=Math.floor(el/CYCLE)%WORDS.length, wj=(wi+1)%WORDS.length;
-                const q=smoother((lt-HOLD_END)/(CYCLE-HOLD_END));  /* 0 in hold, ->1 through the melt */
-                const swirl=Math.sin(q*Math.PI);
-                const introA=smoother(el/900);
+                const lt=el%LOOP_MS;
+                const wi=Math.floor(lt/WORD_MS)%WORDS.length;
+                const wj=(wi+1)%WORDS.length;
+                const q=smoother((lt-(WORD_MS-MELT_MS))/MELT_MS); /* 0 in hold, ->1 through the melt */
+                const introA=smoother(el/800);
 
                 const lc=lineCenter(), lcx=lc[0], lcy=lc[1];
-                const RW=Math.min(window.innerWidth/2-20,300), RH=95;
-
                 ctx.setTransform(1,0,0,1,0,0);
                 ctx.clearRect(0,0,W,H);
                 ctx.setTransform(dpr,0,0,dpr,0,0);
 
-                /* — the words: real type, always legible, always distinct — */
+                /* LAYER 2 — the field, behind the type. Slow sine drift only. */
+                for(let i=0;i<blobs.length;i++){
+                    const b=blobs[i];
+                    const x=lcx+b.dx+Math.sin(t*b.sp1+b.ph)*b.ax;
+                    const y=lcy+b.dy+Math.cos(t*b.sp2+b.ph*1.7)*b.ay;
+                    const breathe=0.8+0.2*Math.sin(t*b.brs+b.br);
+                    ctx.globalAlpha=b.al*breathe*introA;
+                    ctx.drawImage(b.sp,x-b.r,y-b.r,b.r*2,b.r*2);
+                }
+
+                /* LAYER 1 — the words. Real type, always crisp. */
+                ctx.globalAlpha=1;
                 ctx.textAlign='center'; ctx.textBaseline='middle';
                 const drawWord=(w,alpha)=>{
                     if(alpha<0.01) return;
                     ctx.globalAlpha=alpha;
                     ctx.font=w.font(px);
                     try{ ctx.letterSpacing=w.spacing; }catch(e){}
-                    ctx.fillStyle='rgb('+INK+')';
+                    ctx.fillStyle='#1b1917';
                     ctx.fillText(w.text,lcx,lcy+px*0.04);
                     try{ ctx.letterSpacing='0px'; }catch(e){}
                 };
                 drawWord(WORDS[wi],introA*(1-q));
                 drawWord(WORDS[wj],introA*q);
                 ctx.globalAlpha=1;
-
-                /* — the cells — */
-                const A=anchors[wi], B=anchors[wj];
-                for(let i=0;i<parts.length;i++){
-                    const p=parts[i];
-                    let tx, ty, stiff, damp;
-                    if(p.anchor){
-                        const a=A[p.ai%A.length], b=B[p.ai%B.length];
-                        const dx=b[0]-a[0], dy=b[1]-a[1], d=Math.hypot(dx,dy)||1;
-                        const off=swirl*38*Math.sin(p.tw);
-                        tx=lcx+a[0]+dx*q+(-dy/d)*off;
-                        ty=lcy+a[1]+dy*q+(dx/d)*off;
-                        stiff=26; damp=10;
-                    }else{
-                        tx=lcx; ty=lcy; stiff=0; damp=0;
-                    }
-                    let ax, ay;
-                    if(p.anchor){
-                        ax=(tx-p.x)*stiff-p.vx*damp;
-                        ay=(ty-p.y)*stiff-p.vy*damp;
-                        ax+=Math.sin(p.y*0.006+tSec*0.9)*14*p.drift;
-                        ay+=Math.cos(p.x*0.006-tSec*0.7)*14*p.drift;
-                    }else{
-                        const ddx=p.x-lcx, ddy=p.y-lcy;
-                        const turb=20+60*swirl;
-                        ax=Math.sin(p.y*0.004+tSec*0.6)*turb*p.drift-p.vx*1.1;
-                        ay=Math.cos(p.x*0.004-tSec*0.5)*turb*p.drift-p.vy*1.1;
-                        const ox2=Math.abs(ddx)-RW, oy2=Math.abs(ddy)-RH;
-                        if(ox2>0) ax-=Math.sign(ddx)*ox2*4;
-                        if(oy2>0) ay-=Math.sign(ddy)*oy2*4;
-                    }
-                    p.vx+=ax*dt; p.vy+=ay*dt;
-                    const maxV=(p.anchor?700:520)*dpr, s2=p.vx*p.vx+p.vy*p.vy;
-                    if(s2>maxV*maxV){ const s=maxV/Math.sqrt(s2); p.vx*=s; p.vy*=s; }
-                    p.x+=p.vx*dt; p.y+=p.vy*dt;
-                }
-
-                /* — draw the field, feathered at the region bounds: no rectangle — */
-                const sprK=0.32;
-                for(let i=0;i<parts.length;i++){
-                    const p=parts[i];
-                    const ex=(RW-Math.abs(p.x-lcx))/40, ey=(RH-Math.abs(p.y-lcy))/40;
-                    const e=clamp01(Math.min(ex,ey));
-                    if(e<0.03) continue;
-                    const edge=e*e*(3-2*e);
-                    const a=(0.40+0.22*Math.sin(p.tw+tSec*p.tws))*edge*introA;
-                    if(a<0.04) continue;
-                    const rot=p.rot+tSec*p.vr;
-                    const co=Math.cos(rot)*p.sc*sprK, si=Math.sin(rot)*p.sc*sprK;
-                    ctx.globalAlpha=Math.max(0,Math.min(1,a));
-                    ctx.setTransform(dpr*co,dpr*si,-dpr*si,dpr*co,p.x*dpr,p.y*dpr);
-                    const hs=p.sp.width/2;
-                    ctx.drawImage(p.sp,-hs,-hs);
-                }
-                ctx.globalAlpha=1;
-                ctx.setTransform(1,0,0,1,0,0);
+                try{ ctx.letterSpacing='0px'; }catch(e){}
             }
 
             function observe(){
                 new IntersectionObserver(es=>{
                     visible=es[0].isIntersecting;
-                    if(visible){ lastT=0; if(rafId===null) rafId=requestAnimationFrame(frame); }
+                    if(visible){ if(rafId===null) rafId=requestAnimationFrame(frame); }
                 },{threshold:.15}).observe(stage);
                 let rT=null;
                 window.addEventListener('resize',()=>{ clearTimeout(rT); rT=setTimeout(build,250); });
