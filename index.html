@@ -141,13 +141,13 @@
         }
 
         /* Pillars — dark section */
-        .pillars { background: var(--dark-bg); color: #f0ebe4; border: none; position: relative; overflow: hidden; }
-        .pillars::before {
+        section.card.pillars { background: var(--dark-bg); color: #f0ebe4; border: none; position: relative; overflow: hidden; }
+        section.card.pillars::before {
             content: ""; position: absolute; inset: 0; pointer-events: none;
             background: radial-gradient(60% 45% at 85% 10%, rgba(199,125,88,.22), transparent 70%);
         }
-        .pillars h2 { color: #fff; position: relative; font-size: clamp(1.55rem, 4.5vw, 1.9rem); letter-spacing: -.5px; }
-        .pillars .eyebrow { color: #e8a87c; position: relative; }
+        section.card.pillars h2 { color: #fff; position: relative; font-size: clamp(1.55rem, 4.5vw, 1.9rem); letter-spacing: -.5px; }
+        section.card.pillars .eyebrow { color: #e8a87c; position: relative; }
         .pillar-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 24px; position: relative; }
         .pillar {
             background: var(--dark-card); border: 1px solid var(--dark-line);
