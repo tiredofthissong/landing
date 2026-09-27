@@ -638,40 +638,38 @@
             });
         });
 
-        /* — path particle morph XI: 6s intro through all three words, then scroll-reactive — */
+        /* — path particle morph XII: real type + a living cellular field.
+           UX read: the hero must SAY three words — legibility is the product.
+           So typography does the talking (real canvas type, always crisp) and the
+           cells do the living: they rest on the letterforms, stream through each
+           melt, and drift around the word. The eye reads "letters become cells"
+           without legibility ever being at risk. One clock, no phase machine. — */
         (function(){
-            const stage = document.getElementById('pathStage');
-            const canvas = document.getElementById('pathCanvas');
-            if(!stage || !canvas || !canvas.getContext) return;
-            if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-            const SHOW_T = location.search.indexOf('showtargets')>=0;   /* debug: red dots on targets */
+            const stage=document.getElementById('pathStage');
+            const canvas=document.getElementById('pathCanvas');
+            const lineEl=document.getElementById('pathLine');
+            if(!stage||!canvas||!canvas.getContext||!lineEl) return;
+            if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-            const WORDS = [
-                { text:'IMPLEMENTATION', canvasFont:px=>'700 '+px+'px "Space Grotesk", sans-serif', spacing:'0.2em' },
-                { text:'Automation',     canvasFont:px=>'700 '+px+'px "JetBrains Mono", monospace',   spacing:'0px' },
-                { text:'Adoption',       canvasFont:px=>'italic 900 '+px+'px "Fraunces", serif',       spacing:'0px' },
+            const WORDS=[
+                { text:'IMPLEMENTATION', font:px=>'700 '+px+'px "Space Grotesk", sans-serif', spacing:'0.2em' },
+                { text:'Automation',     font:px=>'700 '+px+'px "JetBrains Mono", monospace',   spacing:'0px' },
+                { text:'Adoption',       font:px=>'italic 900 '+px+'px "Fraunces", serif',       spacing:'0px' },
             ];
-            const INK='27,25,23', RUST='194,112,61';   /* --ink and --accent, straight from the page tokens */
-            let POOL=9000; const PTS_CAP=14000;
-            const ORDER=['intro','holdA','morph1','holdB','morph2','holdC','scroll'];
-            const NEXT={ intro:'holdA', holdA:'morph1', morph1:'holdB', holdB:'morph2', morph2:'holdC', holdC:'scroll' };
-            const DUR={ intro:1200, holdA:450, morph1:1300, holdB:450, morph2:1300, holdC:900, scroll:1e12 };
+            const CYCLE=6000, HOLD_END=4200;   /* 4.2s of readable type, 1.8s melt */
+            const N_ANCHOR=320, N_AMBIENT=880;
+            const INK='27,25,23', RUST='194,112,61';
             const ctx=canvas.getContext('2d');
 
-            let W=0, H=0, dpr=1, cssW=0, cssH=0;
-            let particles=[], pointSets=[], SPRITES=[], sprK=1;
-            let phase='condense', phaseStart=0, wordIndex=0;
-            let particleAlpha=0, twA=0.28, allFaded=false;
-            let anchorX=0, anchorY=0, ox=0, oy=0;   /* word anchor (build-time css px) + scroll offset (device px) */
-            let RCX=0, RCY=0, RW=0, RH=0;           /* drift region center + half-extents (device px) */
-            let visible=false, rafId=null, inited=false, lastT=0, started=false;
-
-            const easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
-            const rnd=(a,b)=>a+Math.random()*(b-a);
+            let W=0,H=0,dpr=1,px=48;
+            let anchors=[], parts=[], SPRITES=[];
+            let visible=false, rafId=null, inited=false, lastT=0, t0=0;
             const clamp01=v=>v<0?0:v>1?1:v;
-            const tri=()=>((Math.random()+Math.random()+Math.random())/3)*2-1;  /* centered scatter */
+            const smoother=t=>{ t=clamp01(t); return t*t*t*(t*(t*6-15)+10); };
+            const rnd=(a,b)=>a+Math.random()*(b-a);
+            const tri=()=>((Math.random()+Math.random()+Math.random())/3)*2-1;
 
-            /* — cellular sprites: soft amoeba blobs with a faint nucleus, nothing geometric — */
+            /* cellular sprites: soft amoeba blobs with a faint nucleus, nothing geometric */
             function blobSprite(core){
                 const S=48, s=document.createElement('canvas'); s.width=s.height=S;
                 const c=s.getContext('2d');
@@ -698,218 +696,85 @@
                 for(let i=0;i<3;i++) SPRITES.push(blobSprite(RUST));
             }
 
-            function measureAnchor(){
-                const sr=stage.getBoundingClientRect();
-                anchorX=sr.left+sr.width/2; anchorY=sr.top+sr.height/2;
-                ox=0; oy=0;
+            function lineCenter(){
+                const r=lineEl.getBoundingClientRect();
+                return [r.left+r.width/2, r.top+r.height/2];
             }
 
-            function buildPoints(){
-                dpr=Math.min(2,window.devicePixelRatio||1);
-                cssW=window.innerWidth; cssH=window.innerHeight;
-                W=Math.max(2,Math.round(cssW*dpr));
-                H=Math.max(2,Math.round(cssH*dpr));
-                canvas.width=W; canvas.height=H;
-                buildSprites();
-                measureAnchor();
+            /* fit the biggest word to the viewport; the type is the sub-hero */
+            function measureWordFont(){
+                const lineFs=parseFloat(getComputedStyle(lineEl).fontSize)||20;
+                let size=lineFs*2;
+                const meas=document.createElement('canvas').getContext('2d');
+                const maxW=Math.min(window.innerWidth-56, 900);
+                for(let g=0; g<8; g++){
+                    let widest=0;
+                    for(const w of WORDS){
+                        meas.font=w.font(size);
+                        try{ meas.letterSpacing=w.spacing; }catch(e){}
+                        widest=Math.max(widest, meas.measureText(w.text).width);
+                        try{ meas.letterSpacing='0px'; }catch(e){}
+                    }
+                    if(widest<=maxW||size<20) break;
+                    size*=0.94;
+                }
+                px=size;
+            }
 
+            /* sample each word's letterforms once; anchors are relative to line center */
+            function sampleAnchors(){
+                const vw=Math.max(2,window.innerWidth), vh=Math.max(2,window.innerHeight);
                 const off=document.createElement('canvas');
-                off.width=cssW; off.height=cssH;
-                const octx=off.getContext('2d');
-                const lineFs=parseFloat(getComputedStyle(document.getElementById('pathLine')).fontSize)||24;
-                const baseCss=lineFs*2;
-                /* keep the word clear of the feather so letterforms never clip */
-                const featherCss=40, marginCss=28;
-                const maxW=Math.min(cssW-2*(featherCss+marginCss), 900);
-                const widths=[];
-                const pxCss=WORDS.map(w=>{
-                    octx.font=w.canvasFont(baseCss);
-                    try{ octx.letterSpacing=w.spacing; }catch(e){}
-                    const mw=octx.measureText(w.text).width||1;
-                    try{ octx.letterSpacing='0px'; }catch(e){}
-                    widths.push(mw);
-                    return baseCss*Math.min(1, maxW/mw);
-                });
-                const wordW=Math.max.apply(null, widths.map((mw,i)=>mw*(pxCss[i]/baseCss)));
-                sprK=dpr*0.075;
-                pointSets=WORDS.map((w,wi)=>{
-                    octx.clearRect(0,0,cssW,cssH);
-                    octx.font=w.canvasFont(pxCss[wi]);
-                    try{ octx.letterSpacing=w.spacing; }catch(e){}
-                    octx.textAlign='center'; octx.textBaseline='middle';
-                    octx.fillStyle='#fff';
-                    octx.fillText(w.text,anchorX,anchorY+pxCss[wi]*0.04);
-                    try{ octx.letterSpacing='0px'; }catch(e){}
-                    const d=octx.getImageData(0,0,cssW,cssH).data;
-                    const pts=[], STRIDE=2;
-                    for(let y=0;y<cssH;y+=STRIDE) for(let x=0;x<cssW;x+=STRIDE)
-                        if(d[(y*cssW+x)*4+3]>128)
-                            pts.push([x*dpr, y*dpr]);
-                    if(pts.length>PTS_CAP){
-                        const th=[], st=pts.length/PTS_CAP;
+                off.width=vw; off.height=vh;
+                const o=off.getContext('2d');
+                const cx=vw/2, cy=vh/2;
+                anchors=WORDS.map(w=>{
+                    o.clearRect(0,0,vw,vh);
+                    o.font=w.font(px);
+                    try{ o.letterSpacing=w.spacing; }catch(e){}
+                    o.textAlign='center'; o.textBaseline='middle';
+                    o.fillStyle='#fff';
+                    o.fillText(w.text,cx,cy+px*0.04);
+                    try{ o.letterSpacing='0px'; }catch(e){}
+                    const d=o.getImageData(0,0,vw,vh).data;
+                    const pts=[], ST=5;
+                    for(let y=0;y<vh;y+=ST) for(let x=0;x<vw;x+=ST)
+                        if(d[(y*vw+x)*4+3]>100) pts.push([x-cx,y-cy]);
+                    if(pts.length>400){
+                        const th=[], st=pts.length/400;
                         for(let i=0;i<pts.length;i+=st) th.push(pts[Math.floor(i)]);
                         return th;
                     }
-                    return pts;
+                    return pts.length?pts:[[0,0]];
                 });
-                POOL=Math.max.apply(null, pointSets.map(s=>s.length).concat([1]));
-
-                /* contained field: a soft cloud around the word line, never the whole viewport */
-                RCX=anchorX*dpr; RCY=anchorY*dpr;
-                RW=(wordW/2+110)*dpr; RH=150*dpr;
-
-                particles=[];
-                for(let i=0;i<POOL;i++){
-                    particles.push({
-                        x:RCX+tri()*RW*0.7, y:RCY+tri()*RH*0.7, vx:0, vy:0,
-                        bx:0, by:0, fade:0,
-                        join:0, rel:0, released:false,
-                        sp:SPRITES[(Math.random()*SPRITES.length)|0],
-                        sc:rnd(0.6,1.15), rot:rnd(0,6.283), vr:rnd(-0.9,0.9),
-                        tw:rnd(0,6.283), tws:rnd(1.2,2.6), drift:rnd(0.6,1)
-                    });
-                }
-                allFaded=false;
-                setPhase('intro');
             }
 
-            function assignTargets(wi){
-                const pts=pointSets[wi], n=particles.length;
-                const order=new Array(n);
-                for(let i=0;i<n;i++) order[i]=i;
-                for(let i=n-1;i>0;i--){
-                    const j=(Math.random()*(i+1))|0, tmp=order[i];
-                    order[i]=order[j]; order[j]=tmp;
-                }
-                for(let k=0;k<n;k++){
-                    const p=particles[order[k]], pt=pts[k%pts.length];
-                    p.bx=pt[0]; p.by=pt[1];   /* base targets; scroll adds ox/oy at steer time */
-                }
-            }
-
-            function setPhase(ph){
-                phase=ph; phaseStart=performance.now();
-                if(ph==='intro'){
-                    wordIndex=0; assignTargets(0);
-                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random()*0.5;
-                }else if(ph==='morph1'||ph==='morph2'){
-                    wordIndex=ph==='morph1'?1:2; assignTargets(wordIndex);
-                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random()*0.55;
-                }
-            }
-
-            /* particles fade in once at the start, then never clear */
-            function updateFades(dt){
-                if(allFaded) return;
-                const k=Math.min(1,dt*4);
-                let min=1;
-                for(let i=0;i<particles.length;i++){
-                    const p=particles[i];
-                    p.fade+=(1-p.fade)*k;
-                    if(p.fade<min) min=p.fade;
-                }
-                if(min>0.99) allFaded=true;
-            }
-
-            function steerOne(p, dt, tSec, stiff, damp){
-                const tx=(p.bx+ox)-p.x, ty=(p.by+oy)-p.y;
-                const dist=Math.sqrt(tx*tx+ty*ty);
-                let ax=tx*stiff-p.vx*damp;
-                let ay=ty*stiff-p.vy*damp;
-                ax+=Math.sin(p.y*0.006+tSec*0.9)*16*p.drift;
-                ay+=Math.cos(p.x*0.006-tSec*0.7)*16*p.drift;
-                p.vx+=ax*dt; p.vy+=ay*dt;
-                const maxV=Math.min(850*dpr, 120*dpr+dist*6);   /* brake on arrival: no rushing */
-                const s2=p.vx*p.vx+p.vy*p.vy;
-                if(s2>maxV*maxV){ const s=maxV/Math.sqrt(s2); p.vx*=s; p.vy*=s; }
-                p.x+=p.vx*dt; p.y+=p.vy*dt;
-            }
-            const smoother=t=>t*t*t*(t*(t*6-15)+10);
-
-            /* drift inside the soft region; the "lost" state stays near the line */
-            function driftRegion(p, dt, tSec){
-                const ccx=RCX+ox, ccy=RCY+oy;
-                const dx=p.x-ccx, dy=p.y-ccy;
-                let ax=Math.sin(p.y*0.004+tSec*0.6)*24-p.vx*0.9;
-                let ay=Math.cos(p.x*0.004-tSec*0.5)*24-p.vy*0.9;
-                const ox2=Math.abs(dx)-RW, oy2=Math.abs(dy)-RH;
-                if(ox2>0) ax-=Math.sign(dx)*ox2*3;
-                if(oy2>0) ay-=Math.sign(dy)*oy2*3;
-                p.vx+=ax*dt; p.vy+=ay*dt;
-                p.x+=p.vx*dt; p.y+=p.vy*dt;
-            }
-
-            /* gather: cells join the word progressively, mirroring the decay */
-            function condenseUpdate(dt, tSec, t){
-                const je=smoother(clamp01(t));
-                for(let i=0;i<particles.length;i++){
-                    const p=particles[i];
-                    if(p.fade<0.02) continue;
-                    if(je>=p.join) steerOne(p,dt,tSec,30,8);
-                    else driftRegion(p,dt,tSec);
-                }
-            }
-
-            /* morph: the word melts into the next — cells re-target progressively */
-            function morphUpdate(dt, tSec, t){
-                const je=smoother(clamp01(t));
-                for(let i=0;i<particles.length;i++){
-                    const p=particles[i];
-                    if(p.fade<0.02) continue;
-                    if(je>=p.join) steerOne(p,dt,tSec,34,9);
-                    else driftRegion(p,dt,tSec);
-                }
-            }
-            /* scroll: the finished word holds, but the page stirs it — scroll fast and it streams, rest and it re-forms */
-            let lastSY=null, scrollSm=0;
-            function scrollUpdate(dt, tSec){
-                const sy=window.scrollY||0;
-                if(lastSY===null) lastSY=sy;
-                const sv=Math.max(-5000,Math.min(5000,(sy-lastSY)/Math.max(1,dt*1000)*1000));
-                lastSY=sy;
-                scrollSm+=(sv-scrollSm)*Math.min(1,dt*5);
-                const stir=Math.abs(scrollSm);
-                for(let i=0;i<particles.length;i++){
-                    const p=particles[i];
-                    if(p.fade<0.02) continue;
-                    const tx=(p.bx+ox)-p.x, ty=(p.by+oy)-p.y;
-                    let ax=tx*30-p.vx*12, ay=ty*30-p.vy*12;
-                    ax+=-scrollSm*1.4*p.drift+Math.sin(p.y*0.006+tSec*1.4)*stir*1.1;
-                    ay+=-scrollSm*0.5*p.drift+Math.cos(p.x*0.006-tSec*1.1)*stir*1.1;
-                    p.vx+=ax*dt; p.vy+=ay*dt;
-                    const maxV=900*dpr, s2=p.vx*p.vx+p.vy*p.vy;
-                    if(s2>maxV*maxV){ const s=maxV/Math.sqrt(s2); p.vx*=s; p.vy*=s; }
-                    p.x+=p.vx*dt; p.y+=p.vy*dt;
-                }
-            }
-
-            function drawActive(tSec){
-                const feather=40*dpr;
-                const ccx=RCX+ox, ccy=RCY+oy;
-                for(let i=0;i<particles.length;i++){
-                    const p=particles[i];
-                    if(p.fade<0.03) continue;
-                    /* melt the cloud into the page at the region bounds: no rectangle */
-                    const ex=(RW-Math.abs(p.x-ccx))/feather, ey=(RH-Math.abs(p.y-ccy))/feather;
-                    const e=clamp01(Math.min(ex,ey)), edge=e*e*(3-2*e);
-                    if(edge<0.02) continue;
-                    const a=particleAlpha*p.fade*((1-twA)+twA*Math.sin(p.tw+tSec*p.tws))*edge;
-                    if(a<0.03) continue;
-                    const rot=p.rot+tSec*p.vr, co=Math.cos(rot)*p.sc*sprK, si=Math.sin(rot)*p.sc*sprK;
-                    ctx.globalAlpha=Math.max(0,Math.min(1,a));
-                    ctx.setTransform(co,si,-si,co,p.x,p.y);
-                    const hs=p.sp.width/2;
-                    ctx.drawImage(p.sp,-hs,-hs);
-                }
-                if(SHOW_T){
-                    ctx.globalAlpha=0.9; ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#ff0000';
-                    for(let i=0;i<particles.length;i+=7){
-                        const p=particles[i];
-                        ctx.fillRect(p.bx+ox-1.5, p.by+oy-1.5, 3, 3);
-                    }
-                }
-                ctx.globalAlpha=1;
-                ctx.setTransform(1,0,0,1,0,0);
+            function build(){
+                dpr=Math.min(2,window.devicePixelRatio||1);
+                const vw=window.innerWidth, vh=window.innerHeight;
+                W=Math.max(2,Math.round(vw*dpr)); H=Math.max(2,Math.round(vh*dpr));
+                canvas.width=W; canvas.height=H;
+                buildSprites();
+                measureWordFont();
+                sampleAnchors();
+                const lc=lineCenter();
+                const RW=Math.min(vw/2-20,470), RH=150;
+                parts=[];
+                for(let i=0;i<N_ANCHOR;i++) parts.push({
+                    anchor:true, ai:(Math.random()*400)|0,
+                    x:lc[0]+tri()*RW, y:lc[1]+tri()*RH, vx:0, vy:0,
+                    sp:SPRITES[(Math.random()*SPRITES.length)|0],
+                    sc:rnd(0.55,1.05), rot:rnd(0,6.283), vr:rnd(-0.9,0.9),
+                    tw:rnd(0,6.283), tws:rnd(1.2,2.6), drift:rnd(0.6,1)
+                });
+                for(let i=0;i<N_AMBIENT;i++) parts.push({
+                    anchor:false,
+                    x:lc[0]+tri()*RW, y:lc[1]+tri()*RH, vx:0, vy:0,
+                    sp:SPRITES[(Math.random()*SPRITES.length)|0],
+                    sc:rnd(0.55,1.05), rot:rnd(0,6.283), vr:rnd(-0.9,0.9),
+                    tw:rnd(0,6.283), tws:rnd(1.2,2.6), drift:rnd(0.6,1)
+                });
+                t0=performance.now();
             }
 
             function frame(now){
@@ -917,37 +782,90 @@
                 rafId=requestAnimationFrame(frame);
                 const dt=Math.min(0.05,lastT?(now-lastT)/1000:0.016); lastT=now;
                 const tSec=now*0.001;
+                const el=Math.max(0,now-t0);
+                const lt=el%CYCLE;
+                const wi=Math.floor(el/CYCLE)%WORDS.length, wj=(wi+1)%WORDS.length;
+                const q=smoother((lt-HOLD_END)/(CYCLE-HOLD_END));  /* 0 in hold, ->1 through the melt */
+                const swirl=Math.sin(q*Math.PI);
+                const introA=smoother(el/900);
+
+                const lc=lineCenter(), lcx=lc[0], lcy=lc[1];
+                const RW=Math.min(window.innerWidth/2-20,470), RH=150;
+
                 ctx.setTransform(1,0,0,1,0,0);
                 ctx.clearRect(0,0,W,H);
+                ctx.setTransform(dpr,0,0,dpr,0,0);
 
-                const el=now-phaseStart, t=clamp01(el/DUR[phase]);
+                /* — the words: real type, always legible, always distinct — */
+                ctx.textAlign='center'; ctx.textBaseline='middle';
+                const drawWord=(w,alpha)=>{
+                    if(alpha<0.01) return;
+                    ctx.globalAlpha=alpha;
+                    ctx.font=w.font(px);
+                    try{ ctx.letterSpacing=w.spacing; }catch(e){}
+                    ctx.fillStyle='rgb('+INK+')';
+                    ctx.fillText(w.text,lcx,lcy+px*0.04);
+                    try{ ctx.letterSpacing='0px'; }catch(e){}
+                };
+                drawWord(WORDS[wi],introA*(1-q));
+                drawWord(WORDS[wj],introA*q);
+                ctx.globalAlpha=1;
 
-                if(phase==='intro'){
-                    updateFades(dt);
-                    particleAlpha=Math.min(1,particleAlpha+dt*3);
-                    twA+=(0.28-twA)*Math.min(1,dt*3);
-                    condenseUpdate(dt,tSec,t);
-                    drawActive(tSec);
-                }else if(phase==='morph1'||phase==='morph2'){
-                    twA+=(0.22-twA)*Math.min(1,dt*3);
-                    particleAlpha=1;
-                    morphUpdate(dt,tSec,t);
-                    drawActive(tSec);
-                }else if(phase==='holdA'||phase==='holdB'||phase==='holdC'){
-                    twA+=(0.05-twA)*Math.min(1,dt*5);
-                    particleAlpha=1;
-                    for(let i=0;i<particles.length;i++){
-                        const p=particles[i];
-                        if(p.fade>0.02) steerOne(p,dt,tSec,44,20);   /* the word sits, alive but legible */
+                /* — the cells — */
+                const A=anchors[wi], B=anchors[wj];
+                for(let i=0;i<parts.length;i++){
+                    const p=parts[i];
+                    let tx, ty, stiff, damp;
+                    if(p.anchor){
+                        const a=A[p.ai%A.length], b=B[p.ai%B.length];
+                        const dx=b[0]-a[0], dy=b[1]-a[1], d=Math.hypot(dx,dy)||1;
+                        const off=swirl*38*Math.sin(p.tw);
+                        tx=lcx+a[0]+dx*q+(-dy/d)*off;
+                        ty=lcy+a[1]+dy*q+(dx/d)*off;
+                        stiff=26; damp=10;
+                    }else{
+                        tx=lcx; ty=lcy; stiff=0; damp=0;
                     }
-                    drawActive(tSec);
-                }else if(phase==='scroll'){
-                    twA+=(0.10-twA)*Math.min(1,dt*3);
-                    particleAlpha=1;
-                    scrollUpdate(dt,tSec);
-                    drawActive(tSec);
+                    let ax, ay;
+                    if(p.anchor){
+                        ax=(tx-p.x)*stiff-p.vx*damp;
+                        ay=(ty-p.y)*stiff-p.vy*damp;
+                        ax+=Math.sin(p.y*0.006+tSec*0.9)*14*p.drift;
+                        ay+=Math.cos(p.x*0.006-tSec*0.7)*14*p.drift;
+                    }else{
+                        const ddx=p.x-lcx, ddy=p.y-lcy;
+                        const turb=20+60*swirl;
+                        ax=Math.sin(p.y*0.004+tSec*0.6)*turb*p.drift-p.vx*1.1;
+                        ay=Math.cos(p.x*0.004-tSec*0.5)*turb*p.drift-p.vy*1.1;
+                        const ox2=Math.abs(ddx)-RW, oy2=Math.abs(ddy)-RH;
+                        if(ox2>0) ax-=Math.sign(ddx)*ox2*4;
+                        if(oy2>0) ay-=Math.sign(ddy)*oy2*4;
+                    }
+                    p.vx+=ax*dt; p.vy+=ay*dt;
+                    const maxV=(p.anchor?700:520)*dpr, s2=p.vx*p.vx+p.vy*p.vy;
+                    if(s2>maxV*maxV){ const s=maxV/Math.sqrt(s2); p.vx*=s; p.vy*=s; }
+                    p.x+=p.vx*dt; p.y+=p.vy*dt;
                 }
-                if(t>=1 && NEXT[phase]) setPhase(NEXT[phase]);
+
+                /* — draw the field, feathered at the region bounds: no rectangle — */
+                const sprK=0.075;
+                for(let i=0;i<parts.length;i++){
+                    const p=parts[i];
+                    const ex=(RW-Math.abs(p.x-lcx))/40, ey=(RH-Math.abs(p.y-lcy))/40;
+                    const e=clamp01(Math.min(ex,ey));
+                    if(e<0.03) continue;
+                    const edge=e*e*(3-2*e);
+                    const a=(0.68+0.32*Math.sin(p.tw+tSec*p.tws))*edge*introA;
+                    if(a<0.04) continue;
+                    const rot=p.rot+tSec*p.vr;
+                    const co=Math.cos(rot)*p.sc*sprK, si=Math.sin(rot)*p.sc*sprK;
+                    ctx.globalAlpha=Math.max(0,Math.min(1,a));
+                    ctx.setTransform(dpr*co,dpr*si,-dpr*si,dpr*co,p.x*dpr,p.y*dpr);
+                    const hs=p.sp.width/2;
+                    ctx.drawImage(p.sp,-hs,-hs);
+                }
+                ctx.globalAlpha=1;
+                ctx.setTransform(1,0,0,1,0,0);
             }
 
             function observe(){
@@ -955,29 +873,18 @@
                     visible=es[0].isIntersecting;
                     if(visible){ lastT=0; if(rafId===null) rafId=requestAnimationFrame(frame); }
                 },{threshold:.15}).observe(stage);
-                let rT=null, sT=null;
-                window.addEventListener('resize',()=>{ clearTimeout(rT); rT=setTimeout(buildPoints,250); });
-                /* keep the word glued to its line while the field roams the viewport */
-                window.addEventListener('scroll',()=>{
-                    if(sT!==null) return;
-                    sT=requestAnimationFrame(()=>{
-                        sT=null;
-                        const sr=stage.getBoundingClientRect();
-                        ox=(sr.left+sr.width/2-anchorX)*dpr;
-                        oy=(sr.top+sr.height/2-anchorY)*dpr;
-                    });
-                },{passive:true});
+                let rT=null;
+                window.addEventListener('resize',()=>{ clearTimeout(rT); rT=setTimeout(build,250); });
             }
 
             function init(){
                 if(inited) return; inited=true;
-                buildPoints();
+                build();
                 stage.classList.add('live');
                 observe();
             }
-            /* canvas can only sample faces the browser has actually fetched: pull each one in */
             function boot(){ setTimeout(init,60); }
-            if(document.fonts && document.fonts.load){
+            if(document.fonts&&document.fonts.load){
                 Promise.all([
                     document.fonts.load('700 100px "Space Grotesk"'),
                     document.fonts.load('700 100px "JetBrains Mono"'),
@@ -985,7 +892,7 @@
                     document.fonts.ready
                 ]).then(boot).catch(boot);
                 setTimeout(init,2500);
-            } else init();
+            }else init();
         })();
     </script>
 </body>
