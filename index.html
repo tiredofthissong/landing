@@ -84,6 +84,17 @@
 
         h1, h2, h3 { font-family: var(--font-display); }
 
+        ::selection { background: var(--accent); color: #fff; }
+
+        a:focus-visible, button:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+            border-radius: 4px;
+        }
+        section.card.cases a:focus-visible, section.card.cases button:focus-visible {
+            outline-color: var(--accent-glow);
+        }
+
         .serif { font-family: var(--font-serif); font-style: italic; font-weight: 500; letter-spacing: 0; }
 
         /* Scroll progress */
@@ -194,8 +205,9 @@
         .approach a {
             display: inline-block; margin-top: 12px; font-size: .88rem; font-weight: 600;
             color: var(--accent-deep); text-decoration: none;
+            transition: transform .2s ease;
         }
-        .approach a:hover { text-decoration: underline; }
+        .approach a:hover { text-decoration: underline; transform: translateX(3px); }
 
         /* ============ CASES (dark, proof) ============ */
         section.card.cases {
@@ -217,12 +229,6 @@
             transition: transform .3s ease, border-color .3s ease, box-shadow .3s ease;
         }
         .case:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 14px 32px rgba(0,0,0,.4); }
-        .case-num {
-            position: absolute; top: 14px; right: 20px; line-height: 1;
-            font-family: var(--font-display); font-size: 2.75rem; font-weight: 700;
-            color: transparent; -webkit-text-stroke: 1px rgba(232,168,124,.38);
-            user-select: none;
-        }
         .case-meta {
             font-size: .72rem; font-weight: 600; text-transform: uppercase;
             letter-spacing: .18em; color: var(--accent-glow); margin-bottom: 10px;
@@ -329,7 +335,6 @@
             .approach { padding: 20px 18px; }
             .case-grid { gap: 10px; margin-top: 20px; }
             .case { padding: 22px 20px; }
-            .case-num { font-size: 2.2rem; }
             .btn-group { flex-direction: column; align-items: stretch; }
             .btn-linkedin, .btn-email { justify-content: center; }
             .field { margin-bottom: 14px; }
@@ -380,7 +385,7 @@
 
         <section class="card reveal" id="approach">
             <div class="eyebrow">Approach</div>
-            <h2>The mechanism, <span class="serif">not the magic.</span></h2>
+            <h2>How I <span class="serif">actually</span> do it.</h2>
             <div class="approach-grid">
                 <div class="approach">
                     <h3>Rollouts that finish.</h3>
@@ -405,10 +410,9 @@
             <h2>With <span class="serif">receipts.</span></h2>
             <div class="case-grid">
                 <div class="case">
-                    <div class="case-num">01</div>
                     <div class="case-meta">Docebo &middot; 2022</div>
                     <h3>Stopping churn before it starts</h3>
-                    <p>I managed a $3M book of business where accounts were churning quietly &mdash; the kind you only notice at renewal. I built a proactive Health Check program: regular education and platform tune-ups that reached accounts before they were at risk.</p>
+                    <p>I managed a $3M book of business where accounts were churning quietly &mdash; the kind you only notice at renewal. I built a Health Check program: regular education and platform tune-ups that reached accounts before they were at risk.</p>
                     <p class="case-call"><strong>The call I made:</strong> run it on a cadence. Regular education and tune-ups up front, instead of rescue missions at renewal time.</p>
                     <div class="case-metric"><strong>30%</strong> churn reduction in one year</div>
                     <p class="case-limit">The limit: it only worked where someone on the client side engaged. No program fixes an empty chair.</p>
@@ -470,7 +474,7 @@
             <div class="eyebrow">About</div>
             <h2>The human <span class="serif">version.</span></h2>
             <p>I&rsquo;m Ben Breaux, a post-sale solution architect in Denver. I started with a degree in education and spent 10+ years in customer success and implementation, learning why software gets adopted &mdash; or doesn&rsquo;t.</p>
-            <p>Now I design the post-sale solution itself: the architecture, the data behind adoption, and AI with a clear job to do. Outside work I car-camp out of my Tesla and rotate through Denver&rsquo;s rec centers.</p>
+            <p>Now I design what happens after the sale: the architecture, the data behind adoption, and AI with a clear job to do. Outside work I car-camp out of my Tesla and rotate through Denver&rsquo;s rec centers.</p>
         </section>
 
         <section class="card reveal" id="contact">
