@@ -733,7 +733,7 @@
                     try{ octx.letterSpacing='0px'; }catch(e){}
                     return baseCss*Math.min(1, maxW/mw);
                 });
-                sprK=dpr*0.032;
+                sprK=dpr*0.058;
                 pointSets=WORDS.map((w,wi)=>{
                     octx.clearRect(0,0,cssW,cssH);
                     octx.font=w.canvasFont(pxCss[wi]);
@@ -743,8 +743,8 @@
                     octx.fillText(w.text,anchorX,anchorY+pxCss[wi]*0.04);
                     try{ octx.letterSpacing='0px'; }catch(e){}
                     const d=octx.getImageData(0,0,cssW,cssH).data;
-                    const pts=[];
-                    for(let y=0;y<cssH;y++) for(let x=0;x<cssW;x++)
+                    const pts=[], STRIDE=2;
+                    for(let y=0;y<cssH;y+=STRIDE) for(let x=0;x<cssW;x+=STRIDE)
                         if(d[(y*cssW+x)*4+3]>128)
                             pts.push([x*dpr, y*dpr]);
                     if(pts.length>PTS_CAP){
