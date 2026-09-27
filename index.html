@@ -837,10 +837,15 @@
             }
 
             function drawActive(tSec){
+                const feather=46*dpr;
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.03) continue;
-                    const a=particleAlpha*p.fade*(0.72+0.28*Math.sin(p.tw+tSec*p.tws));
+                    /* melt the cloud into the page: no visible housing edges */
+                    const ex=Math.min(p.x, W-p.x)/feather, ey=Math.min(p.y, H-p.y)/feather;
+                    const e=clamp01(Math.min(ex,ey)), edge=e*e*(3-2*e);
+                    if(edge<0.02) continue;
+                    const a=particleAlpha*p.fade*(0.72+0.28*Math.sin(p.tw+tSec*p.tws))*edge;
                     if(a<0.03) continue;
                     const rot=p.rot+tSec*p.vr, co=Math.cos(rot)*p.sc*sprK, si=Math.sin(rot)*p.sc*sprK;
                     ctx.globalAlpha=Math.max(0,Math.min(1,a));
