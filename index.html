@@ -640,7 +640,7 @@
             });
         });
 
-        /* — path particle morph IV: words sized to the line, token colors, no dust, adaptive pool — */
+        /* — path particle morph V: cellular blobs, one fluid condense, drifting dissolve — */
         (function(){
             const stage = document.getElementById('pathStage');
             const canvas = document.getElementById('pathCanvas');
@@ -654,60 +654,45 @@
             ];
             const INK='27,25,23', RUST='194,112,61';   /* --ink and --accent, straight from the page tokens */
             let POOL=2000; const PTS_MAX=2400;
-            const ORDER=['gather','grow1','grow2','solidify','hold','release','explore'];
-            const DUR={ gather:1100, grow1:1000, grow2:1200, solidify:600, hold:2200, release:600, explore:3200 };
-            const COUNT={ gather:500, grow1:1000, grow2:2000, solidify:2000, hold:2000, release:2000, explore:2000 };
+            const ORDER=['condense','solidify','hold','dissolve'];
+            const DUR={ condense:3400, solidify:700, hold:2200, dissolve:3600 };
             const ctx=canvas.getContext('2d');
 
             let W=0, H=0, dpr=1, px=[];
             let particles=[], pointSets=[], SPRITES=[], sprK=1;
-            let phase='gather', phaseStart=0, wordIndex=0;
-            let particleAlpha=0, textAlpha=0, activeTarget=500, started=false;
-            let visible=false, rafId=null, inited=false, lastT=0;
+            let phase='condense', phaseStart=0, wordIndex=0, activeF=350;
+            let particleAlpha=0, textAlpha=0;
+            let visible=false, rafId=null, inited=false, lastT=0, started=false;
 
             const easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
             const rnd=(a,b)=>a+Math.random()*(b-a);
             const clamp01=v=>v<0?0:v>1?1:v;
 
-            /* — ethereal sprite atelier: glow motes, sparkles, diamonds, streaks — */
-            function starPath(c,r,ir,n){
-                c.beginPath();
-                for(let i=0;i<n*2;i++){
-                    const rad=i%2?ir:r, a=(i/(n*2))*Math.PI*2-Math.PI/2;
-                    if(i) c.lineTo(Math.cos(a)*rad, Math.sin(a)*rad);
-                    else c.moveTo(Math.cos(a)*rad, Math.sin(a)*rad);
+            /* — cellular sprites: soft amoeba blobs with a faint nucleus, nothing geometric — */
+            function blobSprite(core){
+                const S=48, s=document.createElement('canvas'); s.width=s.height=S;
+                const c=s.getContext('2d');
+                const lobes=3+((Math.random()*2)|0);
+                for(let i=0;i<lobes;i++){
+                    const a=Math.random()*6.2832, rr=S*(0.10+Math.random()*0.08);
+                    const lx=S/2+Math.cos(a)*S*0.10, ly=S/2+Math.sin(a)*S*0.10, rad=rr*2.2;
+                    const g=c.createRadialGradient(lx,ly,0,lx,ly,rad);
+                    g.addColorStop(0,'rgba('+core+',0.85)');
+                    g.addColorStop(0.6,'rgba('+core+',0.32)');
+                    g.addColorStop(1,'rgba('+core+',0)');
+                    c.fillStyle=g; c.beginPath(); c.arc(lx,ly,rad,0,6.2832); c.fill();
                 }
-                c.closePath();
+                const nx=S/2+rnd(-3,3), ny=S/2+rnd(-3,3), nr=S*0.10;
+                const ng=c.createRadialGradient(nx,ny,0,nx,ny,nr);
+                ng.addColorStop(0,'rgba('+core+',0.5)');
+                ng.addColorStop(1,'rgba('+core+',0)');
+                c.fillStyle=ng; c.beginPath(); c.arc(nx,ny,nr,0,6.2832); c.fill();
+                return s;
             }
             function buildSprites(){
-                const S=28;
                 SPRITES=[];
-                ['rgba('+INK+',1)','rgba('+RUST+',1)'].forEach(col=>{
-                    const core=col.slice(5,-4);
-                    const mk=draw=>{
-                        const s=document.createElement('canvas'); s.width=s.height=S;
-                        draw(s.getContext('2d'),S,col,core); return s;
-                    };
-                    SPRITES.push(mk((c,s,cc,co)=>{           /* soft glow mote */
-                        const g=c.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
-                        g.addColorStop(0,cc);
-                        g.addColorStop(0.45,'rgba('+co+',0.5)');
-                        g.addColorStop(1,'rgba('+co+',0)');
-                        c.fillStyle=g; c.fillRect(0,0,s,s);
-                    }));
-                    SPRITES.push(mk((c,s,cc)=>{              /* four-point sparkle */
-                        c.translate(s/2,s/2); c.fillStyle=cc;
-                        starPath(c,s*0.40,s*0.09,4); c.fill();
-                    }));
-                    SPRITES.push(mk((c,s,cc)=>{              /* diamond */
-                        c.translate(s/2,s/2); c.rotate(Math.PI/4); c.fillStyle=cc;
-                        const r=s*0.20; c.fillRect(-r,-r,r*2,r*2);
-                    }));
-                    SPRITES.push(mk((c,s,cc)=>{              /* streak */
-                        c.translate(s/2,s/2); c.fillStyle=cc;
-                        c.beginPath(); c.ellipse(0,0,s*0.32,s*0.09,0,0,6.2832); c.fill();
-                    }));
-                });
+                for(let i=0;i<6;i++) SPRITES.push(blobSprite(INK));
+                for(let i=0;i<3;i++) SPRITES.push(blobSprite(RUST));
             }
 
             function edgeSpawn(p){
@@ -716,7 +701,8 @@
                 else if(side===1){ p.x=rnd(0,W); p.y=H+m; }
                 else if(side===2){ p.x=-m; p.y=rnd(0,H); }
                 else { p.x=W+m; p.y=rnd(0,H); }
-                p.sx=p.x; p.sy=p.y; p.t=0;
+                p.vx=(W/2-p.x)*0.9+rnd(-30,30)*dpr;
+                p.vy=(H/2-p.y)*0.9+rnd(-30,30)*dpr;
             }
 
             function buildPoints(){
@@ -734,9 +720,7 @@
                 px=[basePx, basePx, basePx*1.08];   /* serif word runs 1.08em, like the fallback */
                 /* lighter particle pool on narrow screens; sprite size follows the word size */
                 POOL=r.width<500?1200:2000;
-                COUNT.gather=500; COUNT.grow1=1000;
-                COUNT.grow2=COUNT.solidify=COUNT.hold=COUNT.release=COUNT.explore=POOL;
-                sprK=(px[0]/28)*0.085;
+                sprK=(px[0]/48)*0.085;
                 pointSets=WORDS.map((w,wi)=>{
                     off.width=W; off.height=H;
                     octx.clearRect(0,0,W,H);
@@ -760,15 +744,14 @@
                 particles=[];
                 for(let i=0;i<POOL;i++){
                     particles.push({
-                        x:rnd(0,W), y:rnd(0,H), sx:0, sy:0, tx:0, ty:0, t:0,
-                        rate:rnd(0.7,1.5), fade:0,
+                        x:rnd(0,W), y:rnd(0,H), vx:0, vy:0, tx:0, ty:0, fade:0,
                         sp:SPRITES[(Math.random()*SPRITES.length)|0],
-                        sc:rnd(0.45,1.0), rot:rnd(0,6.283), vr:rnd(-1.4,1.4),
-                        tw:rnd(0,6.283), tws:rnd(1.5,4), drift:rnd(0.6,1)
+                        sc:rnd(0.6,1.15), rot:rnd(0,6.283), vr:rnd(-0.9,0.9),
+                        tw:rnd(0,6.283), tws:rnd(1.2,2.6), drift:rnd(0.6,1)
                     });
                 }
                 assignTargets(wordIndex);
-                setPhase('gather', false);
+                setPhase('condense', false);
             }
 
             function assignTargets(wi){
@@ -781,19 +764,28 @@
                 }
                 for(let k=0;k<n;k++){
                     const p=particles[order[k]], pt=pts[k%pts.length];
-                    p.sx=p.x; p.sy=p.y; p.tx=pt[0]; p.ty=pt[1]; p.t=0;
+                    p.tx=pt[0]; p.ty=pt[1];
                 }
             }
 
             function setPhase(ph, advance){
                 phase=ph; phaseStart=performance.now();
-                activeTarget=COUNT[ph];
-                if(ph==='gather'){
+                if(ph==='condense'){
                     if(advance!==false && started){ wordIndex=(wordIndex+1)%WORDS.length; assignTargets(wordIndex); }
                     started=true;
+                    activeF=350;
+                }else if(ph==='dissolve'){
+                    activeF=POOL;
+                    /* exhale: every cell drifts outward from the word's center */
+                    for(let i=0;i<particles.length;i++){
+                        const p=particles[i];
+                        const dx=p.x-W/2, dy=p.y-H/2, d=Math.hypot(dx,dy)||1;
+                        const sp=rnd(30,110)*dpr;
+                        p.vx=dx/d*sp+rnd(-40,40)*dpr;
+                        p.vy=dy/d*sp+rnd(-40,40)*dpr;
+                    }
                 }
             }
-            function nextPhase(){ setPhase(ORDER[(ORDER.indexOf(phase)+1)%ORDER.length]); }
 
             function drawWord(wi,a){
                 if(a<0.02) return;
@@ -804,37 +796,41 @@
                 ctx.fillText(w.text, W/2, H/2+px[wi]*0.04);
             }
 
-            /* advance fades; respawn particles that (re)activate from the edges */
-            function updateFades(dt){
-                const k=Math.min(1,dt*3);
+            function updateFades(dt, goal, spawn){
+                const k=Math.min(1,dt*4);
                 for(let i=0;i<particles.length;i++){
-                    const p=particles[i], goal=i<activeTarget?1:0, before=p.fade;
-                    p.fade+=(goal-p.fade)*k;
-                    if(goal===1 && before<0.08 && p.fade>=0.08) edgeSpawn(p);
+                    const p=particles[i], g=i<goal?1:0, before=p.fade;
+                    p.fade+=(g-p.fade)*k;
+                    if(spawn && g===1 && before<0.08 && p.fade>=0.08) edgeSpawn(p);
                 }
             }
 
-            /* fly active particles toward their targets with an elegant swirl */
-            function updateConverge(dt){
-                for(let i=0;i<activeTarget;i++){
+            /* velocity steering: cells flow toward their targets, never snap */
+            function steer(dt, tSec, stiff, damp){
+                const maxV=1100*dpr, maxV2=maxV*maxV;
+                for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.02) continue;
-                    p.t=Math.min(1,p.t+dt*p.rate*0.9);
-                    const e=easeIO(p.t), sw=Math.sin(p.t*Math.PI);
-                    p.x=p.sx+(p.tx-p.sx)*e + Math.sin(p.tw+p.t*5.2)*sw*13*dpr*p.drift;
-                    p.y=p.sy+(p.ty-p.sy)*e - sw*7*dpr*p.drift
-                        + Math.cos(p.tw*1.3+p.t*4.1)*sw*9*dpr;
+                    let ax=(p.tx-p.x)*stiff-p.vx*damp;
+                    let ay=(p.ty-p.y)*stiff-p.vy*damp;
+                    ax+=Math.sin(p.y*0.006+tSec*0.9)*34*p.drift;
+                    ay+=Math.cos(p.x*0.006-tSec*0.7)*34*p.drift;
+                    p.vx+=ax*dt; p.vy+=ay*dt;
+                    const s2=p.vx*p.vx+p.vy*p.vy;
+                    if(s2>maxV2){ const s=maxV/Math.sqrt(s2); p.vx*=s; p.vy*=s; }
+                    p.x+=p.vx*dt; p.y+=p.vy*dt;
                 }
             }
 
-            /* explore: the cloud drifts, wanders, learns */
-            function updateExplore(dt,tSec){
-                for(let i=0;i<activeTarget;i++){
+            /* slow flow-field drift for the dissolve */
+            function driftFlow(dt, tSec){
+                const m=40*dpr;
+                for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.02) continue;
-                    p.x+=(Math.sin(p.tw+tSec*0.9)*30+Math.cos(p.tw*2.3+tSec*0.5)*20)*dpr*dt;
-                    p.y+=(Math.cos(p.tw*1.7+tSec*0.7)*26+Math.sin(p.tw*0.9+tSec*0.45)*18)*dpr*dt;
-                    const m=30*dpr;
+                    p.vx+=(Math.sin(p.y*0.004+tSec*0.6)*36-p.vx*0.9)*dt;
+                    p.vy+=(Math.cos(p.x*0.004-tSec*0.5)*36-p.vy*0.9)*dt;
+                    p.x+=p.vx*dt; p.y+=p.vy*dt;
                     if(p.x<-m) p.x=W+m; else if(p.x>W+m) p.x=-m;
                     if(p.y<-m) p.y=H+m; else if(p.y>H+m) p.y=-m;
                 }
@@ -844,7 +840,7 @@
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.03) continue;
-                    const a=particleAlpha*p.fade*(0.5+0.5*Math.sin(p.tw+tSec*p.tws));
+                    const a=particleAlpha*p.fade*(0.72+0.28*Math.sin(p.tw+tSec*p.tws));
                     if(a<0.03) continue;
                     const rot=p.rot+tSec*p.vr, co=Math.cos(rot)*p.sc*sprK, si=Math.sin(rot)*p.sc*sprK;
                     ctx.globalAlpha=Math.max(0,Math.min(1,a));
@@ -865,38 +861,32 @@
                 ctx.clearRect(0,0,W,H);
 
                 const el=now-phaseStart, t=clamp01(el/DUR[phase]);
-                updateFades(dt);
 
-                if(phase==='gather'||phase==='grow1'||phase==='grow2'){
+                if(phase==='condense'){
+                    activeF=350+(POOL-350)*easeIO(t);
+                    updateFades(dt,activeF,true);
                     particleAlpha=Math.min(1,particleAlpha+dt*3);
                     textAlpha=0;
-                    updateConverge(dt);
+                    steer(dt,tSec,26,6.5);
                     drawActive(tSec);
                 }else if(phase==='solidify'){
+                    updateFades(dt,POOL,false);
                     particleAlpha=1-t; textAlpha=t;
-                    updateConverge(dt);
+                    steer(dt,tSec,30,14);
                     drawActive(tSec);
                     drawWord(wordIndex,textAlpha);
                 }else if(phase==='hold'){
                     particleAlpha=0; textAlpha=1;
                     drawWord(wordIndex,1);
-                }else if(phase==='release'){
-                    particleAlpha=t; textAlpha=1-t;
-                    for(let i=0;i<activeTarget;i++){   /* shimmer on the letterforms */
-                        const p=particles[i];
-                        if(p.fade<0.02) continue;
-                        p.x=p.tx+Math.sin(p.tw+tSec*2)*1.6*dpr;
-                        p.y=p.ty+Math.cos(p.tw*0.7+tSec*2.4)*1.6*dpr;
-                    }
+                }else if(phase==='dissolve'){
+                    updateFades(dt,POOL,false);
+                    particleAlpha=Math.min(1,t*3);
+                    textAlpha=clamp01(1-t*2.2);
+                    driftFlow(dt,tSec);
                     drawActive(tSec);
                     drawWord(wordIndex,textAlpha);
-                }else if(phase==='explore'){
-                    particleAlpha=Math.min(1,particleAlpha+dt*2);
-                    textAlpha=0;
-                    updateExplore(dt,tSec);
-                    drawActive(tSec);
                 }
-                if(t>=1) nextPhase();
+                if(t>=1) setPhase(ORDER[(ORDER.indexOf(phase)+1)%ORDER.length]);
             }
 
             function observe(){
