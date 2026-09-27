@@ -139,11 +139,15 @@
             letter-spacing: -.035em; margin-bottom: 12px; line-height: 1.02;
         }
 
-        .tagline {
-            font-family: var(--font-display); font-size: 1.35rem; font-weight: 600;
+        .path {
+            display: flex; align-items: baseline; justify-content: center;
+            flex-wrap: wrap; gap: .3em .6em;
+            font-family: var(--font-display); font-weight: 600;
+            font-size: clamp(1.15rem, 4.2vw, 1.5rem);
             letter-spacing: -.01em; margin-bottom: 16px; color: var(--ink);
         }
-        .tagline .dot { color: var(--accent); }
+        .path .arrow { color: var(--accent); font-weight: 500; }
+        .path .serif { font-size: 1.08em; }
 
         .descriptor {
             font-size: 1.05rem; color: var(--ink-soft); line-height: 1.75;
@@ -325,7 +329,7 @@
             .hero { margin-bottom: 48px; padding-top: 8px; }
             .aurora { height: 320px; }
             .profile-photo { width: 132px; height: 132px; margin-bottom: 20px; }
-            .tagline { font-size: 1.18rem; }
+            .path { font-size: clamp(1.05rem, 5.4vw, 1.25rem); }
             .descriptor { font-size: .98rem; margin-bottom: 24px; }
             .btn-linkedin, .btn-email { padding: 14px 24px; font-size: .98rem; }
             section.card { padding: 30px 22px; margin-bottom: 18px; border-radius: var(--radius-lg); }
@@ -368,7 +372,9 @@
             <div class="aurora"></div>
             <img src="headshot.jpg" alt="Ben Breaux" class="profile-photo" loading="eager">
             <h1 class="reveal">Ben Breaux</h1>
-            <p class="tagline reveal" data-delay="1">Post-Sale Solution Architect<span class="dot">.</span></p>
+            <p class="path reveal" data-delay="1">
+                <span>Implementation</span><span class="arrow" aria-hidden="true">&rarr;</span><span>Automation</span><span class="arrow" aria-hidden="true">&rarr;</span><span class="serif">Adoption</span>
+            </p>
             <p class="descriptor reveal" data-delay="2">I work the part of the deal that comes after the signature &mdash; implementation, adoption data, and applied AI &mdash; so the systems teams buy are the <span class="serif">systems teams use.</span></p>
             <div class="btn-group reveal" data-delay="3">
                 <a href="https://www.linkedin.com/in/ben-breaux-361463b0/" class="btn-linkedin magnetic" target="_blank" rel="noopener">
