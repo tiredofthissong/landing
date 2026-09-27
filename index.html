@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ben Breaux | System Implementation Specialist</title>
-    <meta name="description" content="Ben Breaux is a System Implementation Specialist focused on software adoption, data-driven enablement, and applied AI — turning complex systems into second nature.">
+    <meta name="description" content="Ben Breaux is a System Implementation Specialist. He gets new software adopted: onboarding, data-driven enablement, and practical AI.">
     <meta property="og:title" content="Ben Breaux | System Implementation Specialist">
-    <meta property="og:description" content="Building systems that scale — implementation, adoption, and applied AI for teams that need software to stick.">
+    <meta property="og:description" content="Ben Breaux is a System Implementation Specialist. He gets new software adopted: onboarding, data-driven enablement, and practical AI.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://benbreaux.com/">
     <meta property="og:image" content="https://benbreaux.com/headshot.jpg">
@@ -21,7 +21,7 @@
         "jobTitle": "System Implementation Specialist",
         "url": "https://benbreaux.com/",
         "image": "https://benbreaux.com/headshot.jpg",
-        "description": "Building systems that scale — implementation, adoption, and applied AI for teams that need software to stick.",
+        "description": "Ben Breaux is a System Implementation Specialist. He gets new software adopted: onboarding, data-driven enablement, and practical AI.",
         "sameAs": ["https://www.linkedin.com/in/ben-breaux-361463b0/"]
     }
     </script>
@@ -146,7 +146,7 @@
             content: ""; position: absolute; inset: 0; pointer-events: none;
             background: radial-gradient(60% 45% at 85% 10%, rgba(199,125,88,.22), transparent 70%);
         }
-        .pillars h2 { color: #fff; position: relative; }
+        .pillars h2 { color: #fff; position: relative; font-size: clamp(1.55rem, 4.5vw, 1.9rem); letter-spacing: -.5px; }
         .pillars .eyebrow { color: #e8a87c; position: relative; }
         .pillar-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 24px; position: relative; }
         .pillar {
@@ -233,13 +233,30 @@
         .reveal[data-delay="3"] { transition-delay: .3s; }
 
         @media (max-width: 600px) {
-            .container { padding: 54px 20px; }
+            .container { padding: 40px 18px; }
             h1 { letter-spacing: -.5px; }
-            .profile-photo { width: 150px; height: 150px; }
-            section.card { padding: 32px 24px; }
+            .hero { margin-bottom: 34px; padding-top: 6px; }
+            .aurora { height: 320px; }
+            .profile-photo { width: 132px; height: 132px; margin-bottom: 18px; }
+            .tagline { font-size: 1.05rem; }
+            .subtitle { margin-bottom: 20px; }
+            .btn-linkedin, .btn-email { padding: 14px 22px; font-size: .98rem; }
+            section.card { padding: 26px 20px; margin-bottom: 22px; border-radius: 16px; }
+            section.card h2 { font-size: 1.3rem; }
+            section.card > p { font-size: .98rem; line-height: 1.7; }
+            .pillar-grid { gap: 10px; margin-top: 18px; }
+            .pillar { padding: 18px; }
+            .pillar h3 { font-size: 1.02rem; }
+            .pillar p { font-size: .92rem; }
+            .pillar-icon { width: 38px; height: 38px; margin-bottom: 10px; font-size: 1.2rem; }
             .btn-group { flex-direction: column; align-items: stretch; }
             .btn-linkedin, .btn-email { justify-content: center; }
-            .company-logo { min-width: 130px; padding: 14px 20px; }
+            .company-logo { min-width: 124px; min-height: 68px; padding: 12px 18px; }
+            .company-logo img { max-height: 36px; }
+            .marquee-wrap { margin-top: 20px; }
+            .field { margin-bottom: 14px; }
+            .contact-lede { margin: -4px 0 18px; }
+            .footer { padding: 18px 0 6px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -283,29 +300,29 @@
         <section class="card reveal" id="about">
             <div class="eyebrow">About</div>
             <h2>Software that ships is only half the job.</h2>
-            <p>I&rsquo;m a System Implementation Specialist. I take complex systems from contract to confident daily use &mdash; designing onboarding, enablement, and adoption programs that turn new software into second nature.</p>
-            <p>My background in learning &amp; development means rollouts don&rsquo;t just go live, they stick: clear processes, trained teams, measurable adoption. I work data-first &mdash; defining what good adoption looks like, measuring it, and iterating until the numbers move.</p>
-            <p>And I bring practical AI acumen to every engagement: using modern AI tooling to accelerate documentation, training content, and support, so teams get leverage from day one &mdash; not just licenses.</p>
+            <p>I&rsquo;m a System Implementation Specialist. My work starts where most software projects stall: getting people to actually use the new system.</p>
+            <p>I come from learning &amp; development, so I build the rollout around the people using it &mdash; onboarding they understand and training that holds up after go-live.</p>
+            <p>I track adoption with real numbers and adjust when the data says to. I also use AI tools where they help: faster docs and less busywork.</p>
         </section>
 
         <section class="card pillars reveal" id="focus">
             <div class="eyebrow">What I Do</div>
-            <h2>Three levers. One outcome: adoption.</h2>
+            <h2>What that looks like in practice.</h2>
             <div class="pillar-grid">
                 <div class="pillar">
                     <div class="pillar-icon">&#128736;</div>
                     <h3>Implementation &amp; Onboarding</h3>
-                    <p>Structured rollouts from kickoff to go-live &mdash; milestones, stakeholder alignment, and launch plans built around how people actually work, not how the manual says they should.</p>
+                    <p>I run the rollout: the milestones, the stakeholders, the launch. Then I stay through the messy middle until the new system is just how work gets done.</p>
                 </div>
                 <div class="pillar">
                     <div class="pillar-icon">&#128202;</div>
                     <h3>Data-Driven Enablement</h3>
-                    <p>Define success in numbers first. I instrument adoption, track the leading indicators, and tune training and process until the metrics move &mdash; then keep them moving.</p>
+                    <p>We agree up front what good adoption looks like, in numbers. Then I track it and fix what&rsquo;s lagging.</p>
                 </div>
                 <div class="pillar">
                     <div class="pillar-icon">&#10024;</div>
                     <h3>Applied AI Acumen</h3>
-                    <p>Practical AI inside real workflows. I put modern AI tooling to work on documentation, training content, and support acceleration &mdash; compounding the value of every implementation.</p>
+                    <p>I bring AI into real workflows. Docs get drafted faster, training content comes together quicker, and support gets a head start.</p>
                 </div>
             </div>
         </section>
@@ -320,10 +337,14 @@
                         <div class="company-logo"><img src="adp-logo.png" alt="ADP" loading="lazy"></div>
                         <div class="company-logo"><img src="freshworks-logo.png" alt="Freshworks" loading="lazy"></div>
                         <div class="company-logo"><img src="sandler-logo.png" alt="Sandler" loading="lazy"></div>
+                        <div class="company-logo"><img src="trilliad-logo.png" alt="Trilliad" loading="lazy"></div>
+                        <div class="company-logo"><img src="mass-dor-logo.png" alt="Massachusetts Department of Revenue" loading="lazy"></div>
                         <div class="company-logo"><img src="docebo-logo.png" alt="" aria-hidden="true" loading="lazy"></div>
                         <div class="company-logo"><img src="adp-logo.png" alt="" aria-hidden="true" loading="lazy"></div>
                         <div class="company-logo"><img src="freshworks-logo.png" alt="" aria-hidden="true" loading="lazy"></div>
                         <div class="company-logo"><img src="sandler-logo.png" alt="" aria-hidden="true" loading="lazy"></div>
+                        <div class="company-logo"><img src="trilliad-logo.png" alt="" aria-hidden="true" loading="lazy"></div>
+                        <div class="company-logo"><img src="mass-dor-logo.png" alt="" aria-hidden="true" loading="lazy"></div>
                     </div>
                 </div>
             </div>
@@ -332,7 +353,7 @@
         <section class="card reveal" id="contact">
             <div class="eyebrow">Contact</div>
             <h2>Get in Touch</h2>
-            <p class="contact-lede">Have a system that needs to stick? Let&rsquo;s talk.</p>
+            <p class="contact-lede">Rolling out new software? Let&rsquo;s talk.</p>
             <form id="contactForm" novalidate>
                 <div class="field">
                     <input type="text" id="name" name="name" placeholder=" " required autocomplete="name">
