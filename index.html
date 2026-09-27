@@ -638,7 +638,7 @@
             });
         });
 
-        /* — path particle morph VII: the letters ARE the particles — dense, distinct, decaying — */
+        /* — path particle morph VIII: pixel-true words, progressive gather, tight decay — */
         (function(){
             const stage = document.getElementById('pathStage');
             const canvas = document.getElementById('pathCanvas');
@@ -651,15 +651,15 @@
                 { text:'Adoption',       canvasFont:px=>'italic 900 '+px+'px "Fraunces", serif',       spacing:'0px' },
             ];
             const INK='27,25,23', RUST='194,112,61';   /* --ink and --accent, straight from the page tokens */
-            let POOL=2600; const PTS_MAX=6000;
+            let POOL=9000; const PTS_CAP=14000;
             const ORDER=['condense','settle','hold','degrade'];
-            const DUR={ condense:2200, settle:600, hold:1800, degrade:2600 };
+            const DUR={ condense:2400, settle:600, hold:1800, degrade:2200 };
             const ctx=canvas.getContext('2d');
 
-            let W=0, H=0, dpr=1, px=[];
+            let W=0, H=0, dpr=1, cssW=0, cssH=0;
             let particles=[], pointSets=[], SPRITES=[], sprK=1;
             let phase='condense', phaseStart=0, wordIndex=0;
-            let particleAlpha=0, twA=0.28;
+            let particleAlpha=0, twA=0.28, allFaded=false;
             let anchorX=0, anchorY=0, ox=0, oy=0;   /* word anchor (build-time css px) + scroll offset (device px) */
             let visible=false, rafId=null, inited=false, lastT=0, started=false;
 
@@ -712,58 +712,61 @@
 
             function buildPoints(){
                 dpr=Math.min(2,window.devicePixelRatio||1);
-                W=Math.max(2,Math.round(window.innerWidth*dpr));
-                H=Math.max(2,Math.round(window.innerHeight*dpr));
+                cssW=window.innerWidth; cssH=window.innerHeight;
+                W=Math.max(2,Math.round(cssW*dpr));
+                H=Math.max(2,Math.round(cssH*dpr));
                 canvas.width=W; canvas.height=H;
                 buildSprites();
                 measureAnchor();
 
-                const off=document.createElement('canvas'), octx=off.getContext('2d');
-                /* sub-hero sizing: twice the fallback line, fitted to the viewport */
+                /* sample the words at actual CSS pixels: every pixel is a particle */
+                const off=document.createElement('canvas');
+                off.width=cssW; off.height=cssH;
+                const octx=off.getContext('2d');
                 const lineFs=parseFloat(getComputedStyle(document.getElementById('pathLine')).fontSize)||24;
-                const basePx=lineFs*dpr*2;
-                const maxW=Math.min(window.innerWidth*dpr*0.92, 900*dpr);
-                px=WORDS.map(w=>{
-                    octx.font=w.canvasFont(basePx);
+                const baseCss=lineFs*2.5;
+                const maxW=Math.min(cssW*0.92, 900);
+                const pxCss=WORDS.map(w=>{
+                    octx.font=w.canvasFont(baseCss);
                     try{ octx.letterSpacing=w.spacing; }catch(e){}
                     const mw=octx.measureText(w.text).width||1;
                     try{ octx.letterSpacing='0px'; }catch(e){}
-                    return basePx*Math.min(1, maxW/mw);
+                    return baseCss*Math.min(1, maxW/mw);
                 });
-                POOL=window.innerWidth<500?1500:2600;
-                sprK=basePx*0.0011;
+                sprK=dpr*0.032;
                 pointSets=WORDS.map((w,wi)=>{
-                    off.width=W; off.height=H;
-                    octx.clearRect(0,0,W,H);
-                    octx.font=w.canvasFont(px[wi]);
+                    octx.clearRect(0,0,cssW,cssH);
+                    octx.font=w.canvasFont(pxCss[wi]);
                     try{ octx.letterSpacing=w.spacing; }catch(e){}
                     octx.textAlign='center'; octx.textBaseline='middle';
                     octx.fillStyle='#fff';
-                    octx.fillText(w.text,anchorX*dpr,anchorY*dpr+px[wi]*0.04);
+                    octx.fillText(w.text,anchorX,anchorY+pxCss[wi]*0.04);
                     try{ octx.letterSpacing='0px'; }catch(e){}
-                    const d=octx.getImageData(0,0,W,H).data;
-                    const pts=[], stride=Math.max(1,Math.round(dpr*0.9));
-                    for(let y=0;y<H;y+=stride) for(let x=0;x<W;x+=stride)
-                        if(d[(y*W+x)*4+3]>128)
-                            pts.push([x+rnd(-1,1)*stride*0.5, y+rnd(-1,1)*stride*0.5]);
-                    if(pts.length>PTS_MAX){
-                        const th=[], st=pts.length/PTS_MAX;
+                    const d=octx.getImageData(0,0,cssW,cssH).data;
+                    const pts=[];
+                    for(let y=0;y<cssH;y++) for(let x=0;x<cssW;x++)
+                        if(d[(y*cssW+x)*4+3]>128)
+                            pts.push([x*dpr, y*dpr]);
+                    if(pts.length>PTS_CAP){
+                        const th=[], st=pts.length/PTS_CAP;
                         for(let i=0;i<pts.length;i+=st) th.push(pts[Math.floor(i)]);
                         return th;
                     }
                     return pts;
                 });
+                POOL=Math.max.apply(null, pointSets.map(s=>s.length).concat([1]));
 
                 particles=[];
                 for(let i=0;i<POOL;i++){
                     particles.push({
                         x:rnd(0,W), y:rnd(0,H), vx:0, vy:0, bx:0, by:0, fade:0,
-                        rel:0, released:false,
+                        join:0, rel:0, released:false,
                         sp:SPRITES[(Math.random()*SPRITES.length)|0],
                         sc:rnd(0.6,1.15), rot:rnd(0,6.283), vr:rnd(-0.9,0.9),
                         tw:rnd(0,6.283), tws:rnd(1.2,2.6), drift:rnd(0.6,1)
                     });
                 }
+                allFaded=false;
                 assignTargets(wordIndex);
                 setPhase('condense', false);
             }
@@ -787,6 +790,8 @@
                 if(ph==='condense'){
                     if(advance!==false && started){ wordIndex=(wordIndex+1)%WORDS.length; assignTargets(wordIndex); }
                     started=true;
+                    /* progressive gather: floating count tracks the ratio going into the text */
+                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random();
                 }else if(ph==='degrade'){
                     /* staggered release: letters visibly decay as cells escape */
                     for(let i=0;i<particles.length;i++){
@@ -798,32 +803,51 @@
 
             /* particles fade in once at the start, then never clear */
             function updateFades(dt, spawn){
+                if(allFaded) return;
                 const k=Math.min(1,dt*4);
+                let min=1;
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i], before=p.fade;
                     p.fade+=(1-p.fade)*k;
+                    if(p.fade<min) min=p.fade;
                     if(spawn && before<0.08 && p.fade>=0.08) edgeSpawn(p);
                 }
+                if(min>0.99) allFaded=true;
             }
 
-            /* velocity steering: cells flow toward their targets, never snap */
-            function steer(dt, tSec, stiff, damp){
-                const maxV=1100*dpr, maxV2=maxV*maxV;
+            function steerOne(p, dt, tSec, stiff, damp){
+                let ax=((p.bx+ox)-p.x)*stiff-p.vx*damp;
+                let ay=((p.by+oy)-p.y)*stiff-p.vy*damp;
+                ax+=Math.sin(p.y*0.006+tSec*0.9)*34*p.drift;
+                ay+=Math.cos(p.x*0.006-tSec*0.7)*34*p.drift;
+                p.vx+=ax*dt; p.vy+=ay*dt;
+                const maxV=1100*dpr, s2=p.vx*p.vx+p.vy*p.vy;
+                if(s2>maxV*maxV){ const s=maxV/Math.sqrt(s2); p.vx*=s; p.vy*=s; }
+                p.x+=p.vx*dt; p.y+=p.vy*dt;
+            }
+
+            /* loose flow-field drift with wrap; the "lost" state */
+            function driftLoose(p, dt, tSec){
+                const m=40*dpr;
+                p.vx+=(Math.sin(p.y*0.004+tSec*0.6)*36-p.vx*0.9)*dt;
+                p.vy+=(Math.cos(p.x*0.004-tSec*0.5)*36-p.vy*0.9)*dt;
+                p.x+=p.vx*dt; p.y+=p.vy*dt;
+                if(p.x<-m) p.x=W+m; else if(p.x>W+m) p.x=-m;
+                if(p.y<-m) p.y=H+m; else if(p.y>H+m) p.y=-m;
+            }
+
+            /* gather: cells join the word progressively, floaters thin out in ratio */
+            function condenseUpdate(dt, tSec, t){
+                const jt=easeIO(t);
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.02) continue;
-                    let ax=((p.bx+ox)-p.x)*stiff-p.vx*damp;
-                    let ay=((p.by+oy)-p.y)*stiff-p.vy*damp;
-                    ax+=Math.sin(p.y*0.006+tSec*0.9)*34*p.drift;
-                    ay+=Math.cos(p.x*0.006-tSec*0.7)*34*p.drift;
-                    p.vx+=ax*dt; p.vy+=ay*dt;
-                    const s2=p.vx*p.vx+p.vy*p.vy;
-                    if(s2>maxV2){ const s=maxV/Math.sqrt(s2); p.vx*=s; p.vy*=s; }
-                    p.x+=p.vx*dt; p.y+=p.vy*dt;
+                    if(jt>=p.join) steerOne(p,dt,tSec,30,6.5);
+                    else driftLoose(p,dt,tSec);
                 }
             }
 
-            /* letters decay: cells escape one by one, the rest hold the letterform */
+            /* tight decay: released cells hug the word instead of sprawling */
             function degradeUpdate(dt, tSec, t){
                 const cx=anchorX*dpr+ox, cy=anchorY*dpr+oy, m=40*dpr;
                 for(let i=0;i<particles.length;i++){
@@ -833,9 +857,9 @@
                         if(t>=p.rel){
                             p.released=true;
                             const dx=p.x-cx, dy=p.y-cy, d=Math.hypot(dx,dy)||1;
-                            const sp=rnd(40,130)*dpr;
-                            p.vx=dx/d*sp+rnd(-50,50)*dpr;
-                            p.vy=dy/d*sp+rnd(-50,50)*dpr;
+                            const sp=rnd(25,70)*dpr;
+                            p.vx=dx/d*sp+rnd(-30,30)*dpr;
+                            p.vy=dy/d*sp+rnd(-30,30)*dpr;
                         }else{
                             p.vx+=(((p.bx+ox)-p.x)*36-p.vx*16)*dt;
                             p.vy+=(((p.by+oy)-p.y)*36-p.vy*16)*dt;
@@ -843,8 +867,8 @@
                             continue;
                         }
                     }
-                    p.vx+=(Math.sin(p.y*0.004+tSec*0.6)*36-p.vx*0.9)*dt;
-                    p.vy+=(Math.cos(p.x*0.004-tSec*0.5)*36-p.vy*0.9)*dt;
+                    p.vx+=((cx-p.x)*3-p.vx*1.4+Math.sin(p.y*0.004+tSec*0.6)*20)*dt;
+                    p.vy+=((cy-p.y)*3-p.vy*1.4+Math.cos(p.x*0.004-tSec*0.5)*20)*dt;
                     p.x+=p.vx*dt; p.y+=p.vy*dt;
                     if(p.x<-m) p.x=W+m; else if(p.x>W+m) p.x=-m;
                     if(p.y<-m) p.y=H+m; else if(p.y>H+m) p.y=-m;
@@ -886,16 +910,22 @@
                     updateFades(dt,true);
                     particleAlpha=Math.min(1,particleAlpha+dt*3);
                     twA+=(0.28-twA)*Math.min(1,dt*3);
-                    steer(dt,tSec,30,6.5);
+                    condenseUpdate(dt,tSec,t);
                     drawActive(tSec);
                 }else if(phase==='settle'){
                     twA+=(0.06-twA)*Math.min(1,dt*5);
-                    steer(dt,tSec,34,15);
+                    for(let i=0;i<particles.length;i++){
+                        const p=particles[i];
+                        if(p.fade>0.02) steerOne(p,dt,tSec,34,15);
+                    }
                     drawActive(tSec);
                 }else if(phase==='hold'){
                     twA+=(0.05-twA)*Math.min(1,dt*5);
                     particleAlpha=1;
-                    steer(dt,tSec,40,18);   /* the word sits, alive but legible */
+                    for(let i=0;i<particles.length;i++){
+                        const p=particles[i];
+                        if(p.fade>0.02) steerOne(p,dt,tSec,40,18);   /* the word sits, alive but legible */
+                    }
                     drawActive(tSec);
                 }else if(phase==='degrade'){
                     twA+=(0.28-twA)*Math.min(1,dt*3);
