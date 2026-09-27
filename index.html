@@ -27,7 +27,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,600;1,9..144,900&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,600;1,9..144,900&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&family=Newsreader:ital,opsz,wght@1,14..72,500&display=swap" rel="stylesheet">
     <style>
         /* ============ DESIGN TOKENS ============ */
         :root {
@@ -184,7 +184,7 @@
         .type-stage.live .path { display: none; }
         .type-line.tw-0 { font-family: "Space Grotesk", sans-serif; font-weight: 700; letter-spacing: .2em; }
         .type-line.tw-1 { font-family: "JetBrains Mono", monospace; font-weight: 700; }
-        .type-line.tw-2 { font-family: "Fraunces", serif; font-style: italic; font-weight: 900; }
+        .type-line.tw-2 { font-family: "Newsreader", Georgia, serif; font-style: italic; font-weight: 500; letter-spacing: .01em; }
         .caret {
             display: inline-block; width: 3px; height: 1em; margin-left: 3px;
             background: var(--accent); vertical-align: -0.14em; border-radius: 2px;
@@ -674,8 +674,8 @@
             /* Human keystroke: 55-130ms, hesitant on the first key, with an
                occasional mid-word think-pause. Backspace runs ~3x faster. */
             function typeDelay(i){
-                var d=55+Math.random()*75;
-                if(i===1) d+=170;
+                var d=75+Math.random()*90;
+                if(i===1) d+=220;
                 if(Math.random()<0.07) d+=220+Math.random()*200;
                 return d;
             }
@@ -707,11 +707,14 @@
             }
             function gapBlink(){
                 caret.classList.add('blink');
+                /* Breathe between full runs: a longer blink on the empty line
+                   after Adoption before the loop starts over. */
+                var endOfLoop=(wi===WORDS.length-1);
                 setTimeout(function(){
                     wi=(wi+1)%WORDS.length;
                     setFont(wi);
                     typeWord();
-                }, 1100);
+                }, endOfLoop ? 2600 : 1100);
             }
             function boot(){
                 if(stage.classList.contains('live')) return;
@@ -724,7 +727,7 @@
                 Promise.all([
                     document.fonts.load('700 100px "Space Grotesk"'),
                     document.fonts.load('700 100px "JetBrains Mono"'),
-                    document.fonts.load('italic 900 100px "Fraunces"'),
+                    document.fonts.load('italic 500 100px "Newsreader"'),
                     document.fonts.ready
                 ]).then(function(){ setTimeout(boot,60); })
                  .catch(function(){ setTimeout(boot,60); });
