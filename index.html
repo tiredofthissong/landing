@@ -42,9 +42,9 @@
             --accent-glow: #E8A87C;
             --card: #FFFFFF;
             --line: #E7E0D4;
-            --dark: #14110E;
-            --dark-card: #1E1A15;
-            --dark-line: #2E2822;
+            --dark: #201913;
+            --dark-card: #2A2119;
+            --dark-line: #3B2F23;
             --dark-ink: #F5EFE6;
             --dark-muted: #A89E90;
             --success: #2e7d32;
@@ -62,7 +62,7 @@
 
             --shadow-sm: 0 1px 2px rgba(27,25,23,.05);
             --shadow-md: 0 10px 34px rgba(27,25,23,.09);
-            --shadow-lg: 0 24px 70px rgba(20,17,14,.35);
+            --shadow-lg: 0 24px 70px rgba(32,25,19,.30);
 
             --font-display: 'Space Grotesk', 'Inter', sans-serif;
             --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -172,7 +172,8 @@
             50% { opacity: 1; text-shadow: 0 0 14px rgba(194,112,61,.5); }
         }
         /* Particle morph stage: the canvas takes over the line when JS goes live. */
-        .path-stage { position: relative; }
+        .path-stage { position: relative; padding: 34px 0; }
+        .path-stage .path { margin-bottom: 0; }
         .path .mono { font-family: "JetBrains Mono", monospace; font-weight: 500; letter-spacing: -.02em; }
         #pathCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
         .path-stage.live #pathLine { visibility: hidden; }
@@ -244,7 +245,8 @@
 
         /* ============ CASES (dark, proof) ============ */
         section.card.cases {
-            background: var(--dark); color: var(--dark-ink); border: none;
+            background: linear-gradient(180deg, #2C231B 0%, var(--dark) 26%);
+            color: var(--dark-ink); border: none;
             position: relative; overflow: hidden; box-shadow: var(--shadow-lg);
         }
         section.card.cases::before {
@@ -408,7 +410,7 @@
                 </p>
                 <canvas id="pathCanvas" aria-hidden="true"></canvas>
             </div>
-            <p class="descriptor reveal" data-delay="2">I work the part of the deal that comes after the signature &mdash; implementation, adoption data, and applied AI &mdash; so the systems teams buy are the <span class="serif">systems teams use.</span></p>
+            <p class="descriptor reveal" data-delay="2">I work the part of the deal that comes after the signature &mdash; implementation, adoption data, and applied AI &mdash; so teams actually use the <span class="serif">systems they buy.</span></p>
             <div class="btn-group reveal" data-delay="3">
                 <a href="https://www.linkedin.com/in/ben-breaux-361463b0/" class="btn-linkedin magnetic" target="_blank" rel="noopener">
                     <span class="btn-icon">in</span>
@@ -519,7 +521,7 @@
         <section class="card reveal" id="contact">
             <div class="eyebrow">Contact</div>
             <h2>Let&rsquo;s <span class="serif">talk.</span></h2>
-            <p class="contact-lede">Hiring for post-sale, implementation, or solutions roles? I&rsquo;d like to hear what you&rsquo;re building.</p>
+            <p class="contact-lede">Hiring for implementation, adoption, or applied AI roles? I&rsquo;d like to hear what you&rsquo;re building.</p>
             <form id="contactForm" novalidate>
                 <div class="field">
                     <input type="text" id="name" name="name" placeholder=" " required autocomplete="name">
@@ -638,7 +640,7 @@
             });
         });
 
-        /* — path particle morph III: 500 → 1000 → 2000 gather, crystallize, scatter to explore, reform — */
+        /* — path particle morph IV: words sized to the line, token colors, no dust, adaptive pool — */
         (function(){
             const stage = document.getElementById('pathStage');
             const canvas = document.getElementById('pathCanvas');
@@ -650,15 +652,15 @@
                 { text:'Automation',     canvasFont:px=>'500 '+px+'px "JetBrains Mono", monospace' },
                 { text:'Adoption',       canvasFont:px=>'italic 600 '+px+'px "Fraunces", serif' },
             ];
-            const INK='43,38,32', RUST='194,112,61';
-            const POOL=2000, PTS_MAX=2400;
+            const INK='27,25,23', RUST='194,112,61';   /* --ink and --accent, straight from the page tokens */
+            let POOL=2000; const PTS_MAX=2400;
             const ORDER=['gather','grow1','grow2','solidify','hold','release','explore'];
             const DUR={ gather:1100, grow1:1000, grow2:1200, solidify:600, hold:2200, release:600, explore:3200 };
             const COUNT={ gather:500, grow1:1000, grow2:2000, solidify:2000, hold:2000, release:2000, explore:2000 };
             const ctx=canvas.getContext('2d');
 
             let W=0, H=0, dpr=1, px=[];
-            let particles=[], dust=[], pointSets=[], SPRITES=[];
+            let particles=[], pointSets=[], SPRITES=[], sprK=1;
             let phase='gather', phaseStart=0, wordIndex=0;
             let particleAlpha=0, textAlpha=0, activeTarget=500, started=false;
             let visible=false, rafId=null, inited=false, lastT=0;
@@ -726,17 +728,15 @@
                 buildSprites();
 
                 const off=document.createElement('canvas'), octx=off.getContext('2d');
-                const targetW=r.width*0.92*dpr;
-                px=WORDS.map(w=>{
-                    let lo=8*dpr, hi=120*dpr, best=lo;
-                    for(let i=0;i<24;i++){
-                        const mid=(lo+hi)/2;
-                        octx.font=w.canvasFont(mid);
-                        if(octx.measureText(w.text).width<=targetW){ best=mid; lo=mid; }
-                        else hi=mid;
-                    }
-                    return best;
-                });
+                /* size the words to the designed line: read the fallback's computed size */
+                const lineFs=parseFloat(getComputedStyle(document.getElementById('pathLine')).fontSize)||24;
+                const basePx=lineFs*dpr;
+                px=[basePx, basePx, basePx*1.08];   /* serif word runs 1.08em, like the fallback */
+                /* lighter particle pool on narrow screens; sprite size follows the word size */
+                POOL=r.width<500?1200:2000;
+                COUNT.gather=500; COUNT.grow1=1000;
+                COUNT.grow2=COUNT.solidify=COUNT.hold=COUNT.release=COUNT.explore=POOL;
+                sprK=(px[0]/28)*0.085;
                 pointSets=WORDS.map((w,wi)=>{
                     off.width=W; off.height=H;
                     octx.clearRect(0,0,W,H);
@@ -767,14 +767,8 @@
                         tw:rnd(0,6.283), tws:rnd(1.5,4), drift:rnd(0.6,1)
                     });
                 }
-                dust=[];
-                for(let i=0;i<44;i++){
-                    dust.push({ x:rnd(0,W), y:rnd(0,H), r:rnd(5,15)*dpr,
-                                tw:rnd(0,6.283), rust:Math.random()<0.3,
-                                vx:rnd(-2,2)*dpr*0.14, vy:rnd(-4,-1)*dpr*0.14 });
-                }
-                assignTargets(0);
-                setPhase('gather');
+                assignTargets(wordIndex);
+                setPhase('gather', false);
             }
 
             function assignTargets(wi){
@@ -791,11 +785,11 @@
                 }
             }
 
-            function setPhase(ph){
+            function setPhase(ph, advance){
                 phase=ph; phaseStart=performance.now();
                 activeTarget=COUNT[ph];
                 if(ph==='gather'){
-                    if(started){ wordIndex=(wordIndex+1)%WORDS.length; assignTargets(wordIndex); }
+                    if(advance!==false && started){ wordIndex=(wordIndex+1)%WORDS.length; assignTargets(wordIndex); }
                     started=true;
                 }
             }
@@ -816,7 +810,6 @@
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i], goal=i<activeTarget?1:0, before=p.fade;
                     p.fade+=(goal-p.fade)*k;
-                    if(p.fade<0.02) p.fade=goal? p.fade : 0;
                     if(goal===1 && before<0.08 && p.fade>=0.08) edgeSpawn(p);
                 }
             }
@@ -853,7 +846,7 @@
                     if(p.fade<0.03) continue;
                     const a=particleAlpha*p.fade*(0.5+0.5*Math.sin(p.tw+tSec*p.tws));
                     if(a<0.03) continue;
-                    const rot=p.rot+tSec*p.vr, co=Math.cos(rot)*p.sc, si=Math.sin(rot)*p.sc;
+                    const rot=p.rot+tSec*p.vr, co=Math.cos(rot)*p.sc*sprK, si=Math.sin(rot)*p.sc*sprK;
                     ctx.globalAlpha=Math.max(0,Math.min(1,a));
                     ctx.setTransform(co,si,-si,co,p.x,p.y);
                     const hs=p.sp.width/2;
@@ -870,16 +863,6 @@
                 const tSec=now*0.001;
                 ctx.setTransform(1,0,0,1,0,0);
                 ctx.clearRect(0,0,W,H);
-
-                for(let i=0;i<dust.length;i++){
-                    const d=dust[i];
-                    d.x+=d.vx*dt*60; d.y+=d.vy*dt*60;
-                    if(d.y<-20){ d.y=H+20; d.x=Math.random()*W; }
-                    if(d.x<-20) d.x=W+20; else if(d.x>W+20) d.x=-20;
-                    const a=(0.05+0.05*Math.sin(d.tw+tSec*0.8)).toFixed(3);
-                    ctx.fillStyle=d.rust?('rgba('+RUST+','+a+')'):('rgba('+INK+','+a+')');
-                    ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,6.2832); ctx.fill();
-                }
 
                 const el=now-phaseStart, t=clamp01(el/DUR[phase]);
                 updateFades(dt);
