@@ -107,7 +107,20 @@
             transform-origin: 0 50%; transform: scaleX(0); z-index: 100;
         }
 
-        /* Film grain */
+        /* Mini nav */
+        .mini-nav {
+            position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 2px; padding: 5px; z-index: 80;
+            background: rgba(250,247,242,.85); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+            border: 1px solid var(--line); border-radius: var(--radius-pill);
+            box-shadow: var(--shadow-sm);
+        }
+        .mini-nav a {
+            font-size: .82rem; font-weight: 600; color: var(--ink-soft); text-decoration: none;
+            padding: 8px 16px; border-radius: var(--radius-pill);
+            transition: background .2s ease, color .2s ease;
+        }
+        .mini-nav a:hover { background: var(--paper-warm); color: var(--ink); }
         .grain {
             position: fixed; inset: 0; z-index: 90; pointer-events: none; opacity: .045;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -420,6 +433,11 @@
 <body>
     <div id="progress"></div>
     <div class="grain"></div>
+    <nav class="mini-nav" aria-label="Sections">
+        <a href="#work">Work</a>
+        <a href="#background">Background</a>
+        <a href="#contact">Contact</a>
+    </nav>
 
     <div class="container">
         <header class="hero">
@@ -456,7 +474,7 @@
                     <a href="#work">See it in practice &rarr;</a>
                 </div>
                 <div class="approach">
-                    <h3>Adoption you can measure.</h3>
+                    <h3>Usage you can measure.</h3>
                     <p>We define good adoption in numbers on day one. I track it, find the drop-off, and fix it &mdash; no vanity metrics.</p>
                     <a href="#work">See it in practice &rarr;</a>
                 </div>
@@ -469,7 +487,7 @@
         </section>
 
         <section class="card cases reveal" id="work">
-            <div class="eyebrow">Selected work</div>
+            <div class="eyebrow">Case study</div>
             <h2>With <span class="serif">receipts.</span></h2>
             <div class="case-grid">
                 <div class="case">
