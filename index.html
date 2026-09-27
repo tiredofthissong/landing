@@ -175,7 +175,7 @@
         .path-stage { position: relative; padding: 34px 0; }
         .path-stage .path { margin-bottom: 0; }
         .path .mono { font-family: "JetBrains Mono", monospace; font-weight: 500; letter-spacing: -.02em; }
-        #pathCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+        #pathCanvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; display: none; }
         .path-stage.live #pathLine { visibility: hidden; }
         .path-stage.live #pathCanvas { display: block; }
 
@@ -640,7 +640,7 @@
             });
         });
 
-        /* — path particle morph V: cellular blobs, one fluid condense, drifting dissolve — */
+        /* — path particle morph VI: viewport-wide cellular field behind everything, always alive — */
         (function(){
             const stage = document.getElementById('pathStage');
             const canvas = document.getElementById('pathCanvas');
@@ -653,15 +653,16 @@
                 { text:'Adoption',       canvasFont:px=>'italic 600 '+px+'px "Fraunces", serif' },
             ];
             const INK='27,25,23', RUST='194,112,61';   /* --ink and --accent, straight from the page tokens */
-            let POOL=2000; const PTS_MAX=2400;
+            let POOL=2000; const PTS_MAX=2400, AMBIENT=170;   /* wanderers: the field never fully clears */
             const ORDER=['condense','solidify','hold','dissolve'];
-            const DUR={ condense:3400, solidify:700, hold:2200, dissolve:3600 };
+            const DUR={ condense:2200, solidify:500, hold:1600, dissolve:2200 };
             const ctx=canvas.getContext('2d');
 
             let W=0, H=0, dpr=1, px=[];
             let particles=[], pointSets=[], SPRITES=[], sprK=1;
             let phase='condense', phaseStart=0, wordIndex=0, activeF=350;
             let particleAlpha=0, textAlpha=0;
+            let anchorX=0, anchorY=0, ox=0, oy=0;   /* word anchor (build-time css px) + scroll offset (device px) */
             let visible=false, rafId=null, inited=false, lastT=0, started=false;
 
             const easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
@@ -705,21 +706,26 @@
                 p.vy=(H/2-p.y)*0.9+rnd(-30,30)*dpr;
             }
 
+            function measureAnchor(){
+                const sr=stage.getBoundingClientRect();
+                anchorX=sr.left+sr.width/2; anchorY=sr.top+sr.height/2;
+                ox=0; oy=0;
+            }
+
             function buildPoints(){
-                const r=stage.getBoundingClientRect();
                 dpr=Math.min(2,window.devicePixelRatio||1);
-                W=Math.max(2,Math.round(r.width*dpr));
-                H=Math.max(2,Math.round(r.height*dpr));
+                W=Math.max(2,Math.round(window.innerWidth*dpr));
+                H=Math.max(2,Math.round(window.innerHeight*dpr));
                 canvas.width=W; canvas.height=H;
                 buildSprites();
+                measureAnchor();
 
                 const off=document.createElement('canvas'), octx=off.getContext('2d');
-                /* size the words to the designed line: read the fallback's computed size */
+                /* sub-hero sizing: a touch larger than the fallback line so the word carries the hero */
                 const lineFs=parseFloat(getComputedStyle(document.getElementById('pathLine')).fontSize)||24;
-                const basePx=lineFs*dpr;
+                const basePx=lineFs*dpr*1.25;
                 px=[basePx, basePx, basePx*1.08];   /* serif word runs 1.08em, like the fallback */
-                /* lighter particle pool on narrow screens; sprite size follows the word size */
-                POOL=r.width<500?1200:2000;
+                POOL=window.innerWidth<500?1200:2000;
                 sprK=(px[0]/48)*0.085;
                 pointSets=WORDS.map((w,wi)=>{
                     off.width=W; off.height=H;
@@ -727,7 +733,7 @@
                     octx.font=w.canvasFont(px[wi]);
                     octx.textAlign='center'; octx.textBaseline='middle';
                     octx.fillStyle='#fff';
-                    octx.fillText(w.text,W/2,H/2+px[wi]*0.04);
+                    octx.fillText(w.text,anchorX*dpr,anchorY*dpr+px[wi]*0.04);
                     const d=octx.getImageData(0,0,W,H).data;
                     const pts=[], stride=Math.max(2,Math.round(dpr*1.3));
                     for(let y=0;y<H;y+=stride) for(let x=0;x<W;x+=stride)
@@ -744,7 +750,8 @@
                 particles=[];
                 for(let i=0;i<POOL;i++){
                     particles.push({
-                        x:rnd(0,W), y:rnd(0,H), vx:0, vy:0, tx:0, ty:0, fade:0,
+                        x:rnd(0,W), y:rnd(0,H), vx:0, vy:0, bx:0, by:0, fade:0,
+                        wander:i<AMBIENT,
                         sp:SPRITES[(Math.random()*SPRITES.length)|0],
                         sc:rnd(0.6,1.15), rot:rnd(0,6.283), vr:rnd(-0.9,0.9),
                         tw:rnd(0,6.283), tws:rnd(1.2,2.6), drift:rnd(0.6,1)
@@ -764,7 +771,7 @@
                 }
                 for(let k=0;k<n;k++){
                     const p=particles[order[k]], pt=pts[k%pts.length];
-                    p.tx=pt[0]; p.ty=pt[1];
+                    p.bx=pt[0]; p.by=pt[1];   /* base targets; scroll adds ox/oy at steer time */
                 }
             }
 
@@ -776,10 +783,12 @@
                     activeF=350;
                 }else if(ph==='dissolve'){
                     activeF=POOL;
-                    /* exhale: every cell drifts outward from the word's center */
+                    /* exhale from the word's current on-screen position */
+                    const cx=anchorX*dpr+ox, cy=anchorY*dpr+oy;
                     for(let i=0;i<particles.length;i++){
                         const p=particles[i];
-                        const dx=p.x-W/2, dy=p.y-H/2, d=Math.hypot(dx,dy)||1;
+                        if(p.wander) continue;
+                        const dx=p.x-cx, dy=p.y-cy, d=Math.hypot(dx,dy)||1;
                         const sp=rnd(30,110)*dpr;
                         p.vx=dx/d*sp+rnd(-40,40)*dpr;
                         p.vy=dy/d*sp+rnd(-40,40)*dpr;
@@ -793,13 +802,13 @@
                 ctx.font=w.canvasFont(px[wi]);
                 ctx.textAlign='center'; ctx.textBaseline='middle';
                 ctx.fillStyle='rgba('+INK+','+a.toFixed(3)+')';
-                ctx.fillText(w.text, W/2, H/2+px[wi]*0.04);
+                ctx.fillText(w.text, anchorX*dpr+ox, anchorY*dpr+oy+px[wi]*0.04);
             }
 
             function updateFades(dt, goal, spawn){
                 const k=Math.min(1,dt*4);
                 for(let i=0;i<particles.length;i++){
-                    const p=particles[i], g=i<goal?1:0, before=p.fade;
+                    const p=particles[i], g=(p.wander||i<goal)?1:0, before=p.fade;
                     p.fade+=(g-p.fade)*k;
                     if(spawn && g===1 && before<0.08 && p.fade>=0.08) edgeSpawn(p);
                 }
@@ -810,9 +819,9 @@
                 const maxV=1100*dpr, maxV2=maxV*maxV;
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
-                    if(p.fade<0.02) continue;
-                    let ax=(p.tx-p.x)*stiff-p.vx*damp;
-                    let ay=(p.ty-p.y)*stiff-p.vy*damp;
+                    if(p.wander || p.fade<0.02) continue;
+                    let ax=((p.bx+ox)-p.x)*stiff-p.vx*damp;
+                    let ay=((p.by+oy)-p.y)*stiff-p.vy*damp;
                     ax+=Math.sin(p.y*0.006+tSec*0.9)*34*p.drift;
                     ay+=Math.cos(p.x*0.006-tSec*0.7)*34*p.drift;
                     p.vx+=ax*dt; p.vy+=ay*dt;
@@ -822,11 +831,12 @@
                 }
             }
 
-            /* slow flow-field drift for the dissolve */
-            function driftFlow(dt, tSec){
+            /* slow flow-field drift; wanderOnly keeps the eternal background alive during word phases */
+            function driftFlow(dt, tSec, wanderOnly){
                 const m=40*dpr;
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
+                    if(wanderOnly && !p.wander) continue;
                     if(p.fade<0.02) continue;
                     p.vx+=(Math.sin(p.y*0.004+tSec*0.6)*36-p.vx*0.9)*dt;
                     p.vy+=(Math.cos(p.x*0.004-tSec*0.5)*36-p.vy*0.9)*dt;
@@ -872,22 +882,28 @@
                     updateFades(dt,activeF,true);
                     particleAlpha=Math.min(1,particleAlpha+dt*3);
                     textAlpha=0;
-                    steer(dt,tSec,26,6.5);
+                    steer(dt,tSec,30,6.5);
+                    driftFlow(dt,tSec,true);
                     drawActive(tSec);
                 }else if(phase==='solidify'){
                     updateFades(dt,POOL,false);
                     particleAlpha=1-t; textAlpha=t;
-                    steer(dt,tSec,30,14);
+                    steer(dt,tSec,32,14);
+                    driftFlow(dt,tSec,true);
                     drawActive(tSec);
                     drawWord(wordIndex,textAlpha);
                 }else if(phase==='hold'){
-                    particleAlpha=0; textAlpha=1;
+                    updateFades(dt,0,false);   /* goal 0: only wanderers stay lit */
+                    particleAlpha=Math.min(0.55,particleAlpha+dt*2);
+                    textAlpha=1;
+                    driftFlow(dt,tSec,true);
+                    drawActive(tSec);
                     drawWord(wordIndex,1);
                 }else if(phase==='dissolve'){
                     updateFades(dt,POOL,false);
                     particleAlpha=Math.min(1,t*3);
-                    textAlpha=clamp01(1-t*2.2);
-                    driftFlow(dt,tSec);
+                    textAlpha=clamp01(1-t*2.4);
+                    driftFlow(dt,tSec,false);
                     drawActive(tSec);
                     drawWord(wordIndex,textAlpha);
                 }
@@ -899,8 +915,18 @@
                     visible=es[0].isIntersecting;
                     if(visible){ lastT=0; if(rafId===null) rafId=requestAnimationFrame(frame); }
                 },{threshold:.15}).observe(stage);
-                let rT=null;
+                let rT=null, sT=null;
                 window.addEventListener('resize',()=>{ clearTimeout(rT); rT=setTimeout(buildPoints,250); });
+                /* keep the word glued to its line while the field roams the viewport */
+                window.addEventListener('scroll',()=>{
+                    if(sT!==null) return;
+                    sT=requestAnimationFrame(()=>{
+                        sT=null;
+                        const sr=stage.getBoundingClientRect();
+                        ox=(sr.left+sr.width/2-anchorX)*dpr;
+                        oy=(sr.top+sr.height/2-anchorY)*dpr;
+                    });
+                },{passive:true});
             }
 
             function init(){
