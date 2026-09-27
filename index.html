@@ -635,26 +635,14 @@
                 var target = document.querySelector(this.getAttribute('href'));
                 if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
             });
-        })();
+        });
 
         /* — path particle morph: each word dissolves into particles and reassembles as the next — */
         (function(){
-            const MORPH_DBG = new URLSearchParams(location.search).get('dbg') === '1';
-            const morphStatus = { reduced: null, error: null, live: false, size: null, bail: null };
-            window.__morphStatus = morphStatus;
-            function dbgReport(){
-                if(!MORPH_DBG) return;
-                var d = document.getElementById('morphDbg') || document.createElement('div');
-                d.id = 'morphDbg';
-                d.style.cssText = 'position:fixed;top:0;left:0;z-index:99999;background:#111;color:#7CFC00;font:12px/1.4 monospace;padding:10px;white-space:pre-wrap;max-width:92vw;';
-                d.textContent = 'MORPHDBG ' + JSON.stringify(morphStatus);
-                if(!d.parentNode) document.body.appendChild(d);
-            }
             const stage = document.getElementById('pathStage');
             const canvas = document.getElementById('pathCanvas');
-            if(!stage || !canvas || !canvas.getContext){ morphStatus.bail='missing-nodes'; dbgReport(); return; }
-            morphStatus.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-            if (morphStatus.reduced){ morphStatus.bail='reduced-motion'; dbgReport(); return; }
+            if(!stage || !canvas || !canvas.getContext) return;
+            if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
             const WORDS = ['Implementation', 'Automation', 'Adoption'];
             const INK = [43, 38, 32], ACCENT = [194, 112, 61];
@@ -776,14 +764,9 @@
 
             function init(){
                 if(inited) return; inited=true;
-                try{
-                    buildPoints();
-                    stage.classList.add('live');
-                    morphStatus.live = true;
-                    morphStatus.size = canvas.width + 'x' + canvas.height;
-                    observe();
-                }catch(e){ morphStatus.error = String((e && e.message) || e); }
-                dbgReport();
+                buildPoints();
+                stage.classList.add('live');
+                observe();
             }
             if(document.fonts && document.fonts.ready){
                 document.fonts.ready.then(()=>setTimeout(init,60));
