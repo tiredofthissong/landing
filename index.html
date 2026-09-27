@@ -146,8 +146,31 @@
             font-size: clamp(1.15rem, 4.2vw, 1.5rem);
             letter-spacing: -.01em; margin-bottom: 16px; color: var(--ink);
         }
-        .path .arrow { color: var(--accent); font-weight: 500; }
+        .path .arrow {
+            color: var(--accent); font-weight: 500;
+            transform-origin: left center;
+            animation: arrowIn .5s cubic-bezier(.22,.61,.36,1) both,
+                       arrowPulse 3.6s ease-in-out infinite;
+        }
+        .path > span { display: inline-block; }
+        .path > span:nth-child(1) { animation: pathIn .7s cubic-bezier(.22,.61,.36,1) .35s both; }
+        .path > span:nth-child(3) { animation: pathIn .7s cubic-bezier(.22,.61,.36,1) .55s both; }
+        .path > span:nth-child(5) { animation: pathIn .7s cubic-bezier(.22,.61,.36,1) .75s both; }
+        .path > span:nth-child(2) { animation-delay: .5s, 1.6s; }
+        .path > span:nth-child(4) { animation-delay: .7s, 2.2s; }
         .path .serif { font-size: 1.08em; }
+        @keyframes pathIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: none; }
+        }
+        @keyframes arrowIn {
+            from { opacity: 0; transform: scaleX(0); }
+            to { opacity: 1; transform: scaleX(1); }
+        }
+        @keyframes arrowPulse {
+            0%, 100% { opacity: .62; text-shadow: none; }
+            50% { opacity: 1; text-shadow: 0 0 14px rgba(194,112,61,.5); }
+        }
 
         .descriptor {
             font-size: 1.05rem; color: var(--ink-soft); line-height: 1.75;
@@ -351,6 +374,7 @@
         @media (prefers-reduced-motion: reduce) {
             .aurora { animation: none; }
             .reveal { opacity: 1; transform: none; transition: none; }
+            .path > span, .path .arrow { animation: none; }
             html { scroll-behavior: auto; }
         }
     </style>
@@ -372,7 +396,7 @@
             <div class="aurora"></div>
             <img src="headshot.jpg" alt="Ben Breaux" class="profile-photo" loading="eager">
             <h1 class="reveal">Ben Breaux</h1>
-            <p class="path reveal" data-delay="1">
+            <p class="path">
                 <span>Implementation</span><span class="arrow" aria-hidden="true">&rarr;</span><span>Automation</span><span class="arrow" aria-hidden="true">&rarr;</span><span class="serif">Adoption</span>
             </p>
             <p class="descriptor reveal" data-delay="2">I work the part of the deal that comes after the signature &mdash; implementation, adoption data, and applied AI &mdash; so the systems teams buy are the <span class="serif">systems teams use.</span></p>
