@@ -27,7 +27,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,600&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,600&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
     <style>
         /* ============ DESIGN TOKENS ============ */
         :root {
@@ -173,6 +173,12 @@
         }
         /* Particle morph stage: the canvas takes over the line when JS goes live. */
         .path-stage { position: relative; }
+        .path .mono { font-family: "JetBrains Mono", monospace; font-weight: 500; letter-spacing: -.02em; }
+        .crisp {
+            position: absolute; inset: 0; z-index: 2;
+            display: flex; align-items: center; justify-content: center;
+            white-space: nowrap; opacity: 0; pointer-events: none; color: var(--ink);
+        }
         #pathCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
         .path-stage.live #pathLine { visibility: hidden; }
         .path-stage.live #pathCanvas { display: block; }
@@ -403,8 +409,9 @@
             <h1 class="reveal">Ben Breaux</h1>
             <div class="path-stage" id="pathStage" role="img" aria-label="Implementation, then Automation, then Adoption">
                 <p class="path" id="pathLine">
-                    <span>Implementation</span><span class="arrow" aria-hidden="true">&rarr;</span><span>Automation</span><span class="arrow" aria-hidden="true">&rarr;</span><span class="serif">Adoption</span>
+                    <span>Implementation</span><span class="arrow" aria-hidden="true">&rarr;</span><span class="mono">Automation</span><span class="arrow" aria-hidden="true">&rarr;</span><span class="serif">Adoption</span>
                 </p>
+                <div class="crisp" id="pathCrisp" aria-hidden="true"></div>
                 <canvas id="pathCanvas" aria-hidden="true"></canvas>
             </div>
             <p class="descriptor reveal" data-delay="2">I work the part of the deal that comes after the signature &mdash; implementation, adoption data, and applied AI &mdash; so the systems teams buy are the <span class="serif">systems teams use.</span></p>
@@ -637,119 +644,233 @@
             });
         });
 
-        /* — path particle morph: each word dissolves into particles and reassembles as the next — */
+        /* — path particle morph II: words crystallize into crisp type, each in its own voice — */
         (function(){
             const stage = document.getElementById('pathStage');
             const canvas = document.getElementById('pathCanvas');
-            if(!stage || !canvas || !canvas.getContext) return;
+            const crisp = document.getElementById('pathCrisp');
+            if(!stage || !canvas || !crisp || !canvas.getContext) return;
             if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-            const WORDS = ['Implementation', 'Automation', 'Adoption'];
-            const INK = [43, 38, 32], ACCENT = [194, 112, 61];
-            const HOLD_MS = 2100, MORPH_MS = 1500, MAX_P = 1500;
+            /* the three stages, each in its own typeface */
+            const WORDS = [
+                { text:'Implementation',
+                  canvasFont:px=>'600 '+px+'px "Space Grotesk", sans-serif',
+                  css:{family:'"Space Grotesk", sans-serif', weight:600, style:'normal'} },
+                { text:'Automation',
+                  canvasFont:px=>'500 '+px+'px "JetBrains Mono", monospace',
+                  css:{family:'"JetBrains Mono", monospace', weight:500, style:'normal'} },
+                { text:'Adoption',
+                  canvasFont:px=>'italic 600 '+px+'px "Fraunces", serif',
+                  css:{family:'"Fraunces", serif', weight:600, style:'italic'} },
+            ];
+            const INK='43,38,32', RUST='194,112,61';
+            const CONVERGE=1400, SOLIDIFY=500, HOLD=2300, RELEASE=550, MAX_P=1100;
             const ctx = canvas.getContext('2d');
 
-            let W=0, H=0, dpr=1, fontPx=0;
-            let particles=[], pointSets=[];
-            let wordIndex=0, morphing=false, morphStart=0, holdUntil=0;
-            let visible=false, rafId=null, intro=0, inited=false;
+            let W=0, H=0, dpr=1, px=[];
+            let particles=[], dust=[], pointSets=[], SPRITES=[];
+            let phase='converge', phaseStart=0, wordIndex=0, particleAlpha=0;
+            let visible=false, rafId=null, inited=false;
 
-            const easeInOut = t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+            const easeIO = t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+            const rnd = (a,b)=>a+Math.random()*(b-a);
+
+            /* — ethereal sprite atelier: glow dots, sparkles, diamonds, streaks — */
+            function starPath(c,r,ir,n){
+                c.beginPath();
+                for(let i=0;i<n*2;i++){
+                    const rad=i%2?ir:r, a=(i/(n*2))*Math.PI*2-Math.PI/2;
+                    if(i) c.lineTo(Math.cos(a)*rad, Math.sin(a)*rad);
+                    else c.moveTo(Math.cos(a)*rad, Math.sin(a)*rad);
+                }
+                c.closePath();
+            }
+            function buildSprites(){
+                const S=28;
+                SPRITES=[];
+                ['rgba('+INK+',1)','rgba('+RUST+',1)'].forEach(col=>{
+                    const mk=draw=>{
+                        const s=document.createElement('canvas'); s.width=s.height=S;
+                        draw(s.getContext('2d'),S,col); return s;
+                    };
+                    SPRITES.push(mk((c,s,cc)=>{           /* soft glow mote */
+                        const g=c.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+                        g.addColorStop(0,cc);
+                        g.addColorStop(0.45,'rgba('+cc.slice(5,-4)+',0.5)');
+                        g.addColorStop(1,'rgba('+cc.slice(5,-4)+',0)');
+                        c.fillStyle=g; c.fillRect(0,0,s,s);
+                    }));
+                    SPRITES.push(mk((c,s,cc)=>{           /* four-point sparkle */
+                        c.translate(s/2,s/2); c.fillStyle=cc;
+                        starPath(c,s*0.40,s*0.09,4); c.fill();
+                    }));
+                    SPRITES.push(mk((c,s,cc)=>{           /* diamond */
+                        c.translate(s/2,s/2); c.rotate(Math.PI/4); c.fillStyle=cc;
+                        const r=s*0.20; c.fillRect(-r,-r,r*2,r*2);
+                    }));
+                    SPRITES.push(mk((c,s,cc)=>{           /* streak */
+                        c.translate(s/2,s/2); c.fillStyle=cc;
+                        c.beginPath(); c.ellipse(0,0,s*0.32,s*0.09,0,0,6.2832); c.fill();
+                    }));
+                });
+            }
 
             function buildPoints(){
-                const r = stage.getBoundingClientRect();
-                dpr = Math.min(2, window.devicePixelRatio||1);
-                W = Math.max(2, Math.round(r.width*dpr));
-                H = Math.max(2, Math.round(r.height*dpr));
-                canvas.width = W; canvas.height = H;
-
-                const targetW = r.width*0.94*dpr;
-                let lo=8*dpr, hi=110*dpr;
-                fontPx = lo;
-                for(let i=0;i<22;i++){
-                    const mid=(lo+hi)/2;
-                    ctx.font='600 '+mid+'px "Space Grotesk", sans-serif';
-                    const widest=Math.max.apply(null, WORDS.map(w=>ctx.measureText(w).width));
-                    if(widest<=targetW){ fontPx=mid; lo=mid; } else { hi=mid; }
-                }
+                const r=stage.getBoundingClientRect();
+                dpr=Math.min(2,window.devicePixelRatio||1);
+                W=Math.max(2,Math.round(r.width*dpr));
+                H=Math.max(2,Math.round(r.height*dpr));
+                canvas.width=W; canvas.height=H;
+                buildSprites();
+                crisp.style.opacity=0;
 
                 const off=document.createElement('canvas'), octx=off.getContext('2d');
-                pointSets = WORDS.map(word=>{
+                const targetW=r.width*0.92*dpr;
+                px=WORDS.map(w=>{
+                    let lo=8*dpr, hi=120*dpr, best=lo;
+                    for(let i=0;i<24;i++){
+                        const mid=(lo+hi)/2;
+                        octx.font=w.canvasFont(mid);
+                        if(octx.measureText(w.text).width<=targetW){ best=mid; lo=mid; }
+                        else hi=mid;
+                    }
+                    return best;
+                });
+                pointSets=WORDS.map((w,wi)=>{
                     off.width=W; off.height=H;
                     octx.clearRect(0,0,W,H);
-                    octx.font='600 '+fontPx+'px "Space Grotesk", sans-serif';
+                    octx.font=w.canvasFont(px[wi]);
                     octx.textAlign='center'; octx.textBaseline='middle';
                     octx.fillStyle='#fff';
-                    octx.fillText(word, W/2, H/2+fontPx*0.05);
+                    octx.fillText(w.text,W/2,H/2+px[wi]*0.04);
                     const d=octx.getImageData(0,0,W,H).data;
-                    let pts=[];
-                    const stride=Math.max(2, Math.round(dpr*1.8));
+                    const pts=[], stride=Math.max(2,Math.round(dpr*2.1));
                     for(let y=0;y<H;y+=stride) for(let x=0;x<W;x+=stride)
-                        if(d[(y*W+x)*4+3]>128) pts.push([x+(Math.random()-.5)*stride, y+(Math.random()-.5)*stride]);
+                        if(d[(y*W+x)*4+3]>128)
+                            pts.push([x+rnd(-1,1)*stride*0.5, y+rnd(-1,1)*stride*0.5]);
                     if(pts.length>MAX_P){
-                        const thin=[], step=pts.length/MAX_P;
-                        for(let i=0;i<pts.length;i+=step) thin.push(pts[Math.floor(i)]);
-                        pts=thin;
+                        const th=[], st=pts.length/MAX_P;
+                        for(let i=0;i<pts.length;i+=st) th.push(pts[Math.floor(i)]);
+                        return th;
                     }
                     return pts;
                 });
 
-                const maxPts=Math.max.apply(null, pointSets.map(p=>p.length));
+                const n=Math.max.apply(null, pointSets.map(p=>p.length).concat([1]));
                 particles=[];
-                for(let i=0;i<maxPts;i++){
+                for(let i=0;i<n;i++){
                     particles.push({
-                        x:0, y:0, sx:0, sy:0, tx:0, ty:0,
-                        delay:0, dur:1, ph:Math.random()*6.283,
-                        accent:Math.random()<0.16,
-                        r:(1.05+Math.random()*1.15)*dpr
+                        x:rnd(0,W), y:rnd(0,H), sx:0, sy:0, tx:0, ty:0,
+                        delay:0, dur:1,
+                        sp:SPRITES[(Math.random()*SPRITES.length)|0],
+                        sc:rnd(0.45,1.05), rot:rnd(0,6.283), vr:rnd(-1.4,1.4),
+                        tw:rnd(0,6.283), tws:rnd(1.5,4), drift:rnd(0.6,1)
                     });
                 }
+                dust=[];
+                for(let i=0;i<44;i++){
+                    dust.push({ x:rnd(0,W), y:rnd(0,H), r:rnd(5,15)*dpr,
+                                tw:rnd(0,6.283), rust:Math.random()<0.3,
+                                vx:rnd(-2,2)*dpr*0.14, vy:rnd(-4,-1)*dpr*0.14 });
+                }
                 assignTargets(0);
-                particles.forEach(p=>{ p.x=p.tx; p.y=p.ty; });
-                wordIndex=0; morphing=false;
-                holdUntil=performance.now()+HOLD_MS;
+                particles.forEach(p=>{ p.sx=p.x; p.sy=p.y; });
+                setPhase('converge');
             }
 
             function assignTargets(wi){
-                const pts=pointSets[wi], n=particles.length;
+                const pts=pointSets[wi];
                 const order=particles.map((_,i)=>i);
-                for(let i=n-1;i>0;i--){ const j=(Math.random()*(i+1))|0, t=order[i]; order[i]=order[j]; order[j]=t; }
-                for(let k=0;k<n;k++){
+                for(let i=order.length-1;i>0;i--){
+                    const j=(Math.random()*(i+1))|0, t=order[i];
+                    order[i]=order[j]; order[j]=t;
+                }
+                for(let k=0;k<particles.length;k++){
                     const p=particles[order[k]], pt=pts[k%pts.length];
                     p.sx=p.x; p.sy=p.y; p.tx=pt[0]; p.ty=pt[1];
-                    p.delay=Math.random()*0.32; p.dur=0.68+Math.random()*0.32;
+                    p.delay=Math.random()*0.35; p.dur=0.65+Math.random()*0.35;
                 }
+            }
+
+            function setPhase(ph){ phase=ph; phaseStart=performance.now(); }
+
+            function showCrisp(wi){
+                const w=WORDS[wi];
+                crisp.textContent=w.text;
+                crisp.style.fontFamily=w.css.family;
+                crisp.style.fontWeight=w.css.weight;
+                crisp.style.fontStyle=w.css.style;
+                crisp.style.fontSize=(px[wi]/dpr)+'px';
+            }
+
+            function drawParticles(t, tSec, shimmer){
+                for(let i=0;i<particles.length;i++){
+                    const p=particles[i];
+                    const lt=Math.min(1,Math.max(0,(t-p.delay)/p.dur));
+                    const e=easeIO(lt), sw=Math.sin(lt*Math.PI);
+                    p.x=p.sx+(p.tx-p.sx)*e + Math.sin(p.tw+lt*5.2)*sw*13*dpr*p.drift;
+                    p.y=p.sy+(p.ty-p.sy)*e - sw*7*dpr*p.drift
+                        + Math.cos(p.tw*1.3+lt*4.1)*sw*9*dpr;
+                    let x=p.x, y=p.y;
+                    if(shimmer){
+                        x=p.tx+Math.sin(p.tw+tSec*2)*1.6*dpr;
+                        y=p.ty+Math.cos(p.tw*0.7+tSec*2.4)*1.6*dpr;
+                    }
+                    const a=particleAlpha*(0.5+0.5*Math.sin(p.tw+tSec*p.tws));
+                    if(a<0.03) continue;
+                    const rot=p.rot+tSec*p.vr, co=Math.cos(rot)*p.sc, si=Math.sin(rot)*p.sc;
+                    ctx.globalAlpha=Math.max(0,Math.min(1,a));
+                    ctx.setTransform(co,si,-si,co,x,y);
+                    const hs=p.sp.width/2;
+                    ctx.drawImage(p.sp,-hs,-hs);
+                }
+                ctx.globalAlpha=1;
+                ctx.setTransform(1,0,0,1,0,0);
             }
 
             function frame(now){
                 if(!visible){ rafId=null; return; }
                 rafId=requestAnimationFrame(frame);
+                const tSec=now*0.001;
+                ctx.setTransform(1,0,0,1,0,0);
                 ctx.clearRect(0,0,W,H);
-                if(intro<1) intro=Math.min(1,intro+0.035);
 
-                if(!morphing && now>=holdUntil){
-                    morphing=true; morphStart=now;
-                    wordIndex=(wordIndex+1)%WORDS.length;
-                    assignTargets(wordIndex);
+                for(let i=0;i<dust.length;i++){          /* ambient drifting motes */
+                    const d=dust[i];
+                    d.x+=d.vx; d.y+=d.vy;
+                    if(d.y<-20){ d.y=H+20; d.x=Math.random()*W; }
+                    if(d.x<-20) d.x=W+20; else if(d.x>W+20) d.x=-20;
+                    const a=(0.05+0.05*Math.sin(d.tw+tSec*0.8)).toFixed(3);
+                    ctx.fillStyle=d.rust?('rgba('+RUST+','+a+')'):('rgba('+INK+','+a+')');
+                    ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,6.2832); ctx.fill();
                 }
-                let mp=0;
-                if(morphing){
-                    mp=(now-morphStart)/MORPH_MS;
-                    if(mp>=1){ morphing=false; mp=1; holdUntil=now+HOLD_MS; }
-                }
-                for(let i=0;i<particles.length;i++){
-                    const p=particles[i];
-                    if(morphing){
-                        const t=Math.min(1,Math.max(0,(mp-p.delay)/p.dur)), e=easeInOut(t), sw=Math.sin(t*Math.PI);
-                        p.x=p.sx+(p.tx-p.sx)*e+Math.sin(p.ph+t*6.283)*sw*9*dpr;
-                        p.y=p.sy+(p.ty-p.sy)*e+Math.cos(p.ph*1.7+t*6.283)*sw*9*dpr;
-                    } else {
-                        p.x=p.tx+Math.sin(p.ph+now*0.0012)*1.7*dpr;
-                        p.y=p.ty+Math.cos(p.ph*0.8+now*0.0015)*1.7*dpr;
+
+                const el=now-phaseStart;
+                if(phase==='converge'){
+                    const t=Math.min(1,el/CONVERGE);
+                    particleAlpha=Math.min(1,particleAlpha+0.06);
+                    drawParticles(t,tSec,false);
+                    if(t>=1){ showCrisp(wordIndex); setPhase('solidify'); }
+                }else if(phase==='solidify'){
+                    const t=Math.min(1,el/SOLIDIFY);
+                    particleAlpha=1-t;
+                    crisp.style.opacity=t.toFixed(3);
+                    drawParticles(1,tSec,false);
+                    if(t>=1) setPhase('hold');
+                }else if(phase==='hold'){
+                    crisp.style.opacity=1;
+                    if(el>=HOLD) setPhase('release');
+                }else if(phase==='release'){
+                    const t=Math.min(1,el/RELEASE);
+                    crisp.style.opacity=(1-t).toFixed(3);
+                    particleAlpha=t;
+                    drawParticles(1,tSec,true);
+                    if(t>=1){
+                        wordIndex=(wordIndex+1)%WORDS.length;
+                        assignTargets(wordIndex);
+                        setPhase('converge');
                     }
-                    const c=p.accent?ACCENT:INK;
-                    ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+intro.toFixed(3)+')';
-                    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.2832); ctx.fill();
                 }
             }
 
