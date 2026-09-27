@@ -638,12 +638,13 @@
             });
         });
 
-        /* — path particle morph VIII: pixel-true words, progressive gather, tight decay — */
+        /* — path particle morph IX: contained field, mirrored gather/decay, clipped-safe type — */
         (function(){
             const stage = document.getElementById('pathStage');
             const canvas = document.getElementById('pathCanvas');
             if(!stage || !canvas || !canvas.getContext) return;
             if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            const SHOW_T = location.search.indexOf('showtargets')>=0;   /* debug: red dots on targets */
 
             const WORDS = [
                 { text:'IMPLEMENTATION', canvasFont:px=>'700 '+px+'px "Space Grotesk", sans-serif', spacing:'0.12em' },
@@ -653,7 +654,7 @@
             const INK='27,25,23', RUST='194,112,61';   /* --ink and --accent, straight from the page tokens */
             let POOL=9000; const PTS_CAP=14000;
             const ORDER=['condense','settle','hold','degrade'];
-            const DUR={ condense:2400, settle:600, hold:1800, degrade:2200 };
+            const DUR={ condense:2400, settle:500, hold:1800, degrade:2400 };   /* gather mirrors decay */
             const ctx=canvas.getContext('2d');
 
             let W=0, H=0, dpr=1, cssW=0, cssH=0;
@@ -661,11 +662,13 @@
             let phase='condense', phaseStart=0, wordIndex=0;
             let particleAlpha=0, twA=0.28, allFaded=false;
             let anchorX=0, anchorY=0, ox=0, oy=0;   /* word anchor (build-time css px) + scroll offset (device px) */
+            let RCX=0, RCY=0, RW=0, RH=0;           /* drift region center + half-extents (device px) */
             let visible=false, rafId=null, inited=false, lastT=0, started=false;
 
             const easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
             const rnd=(a,b)=>a+Math.random()*(b-a);
             const clamp01=v=>v<0?0:v>1?1:v;
+            const tri=()=>((Math.random()+Math.random()+Math.random())/3)*2-1;  /* centered scatter */
 
             /* — cellular sprites: soft amoeba blobs with a faint nucleus, nothing geometric — */
             function blobSprite(core){
@@ -694,16 +697,6 @@
                 for(let i=0;i<3;i++) SPRITES.push(blobSprite(RUST));
             }
 
-            function edgeSpawn(p){
-                const side=(Math.random()*4)|0, m=24*dpr;
-                if(side===0){ p.x=rnd(0,W); p.y=-m; }
-                else if(side===1){ p.x=rnd(0,W); p.y=H+m; }
-                else if(side===2){ p.x=-m; p.y=rnd(0,H); }
-                else { p.x=W+m; p.y=rnd(0,H); }
-                p.vx=(W/2-p.x)*0.9+rnd(-30,30)*dpr;
-                p.vy=(H/2-p.y)*0.9+rnd(-30,30)*dpr;
-            }
-
             function measureAnchor(){
                 const sr=stage.getBoundingClientRect();
                 anchorX=sr.left+sr.width/2; anchorY=sr.top+sr.height/2;
@@ -719,20 +712,24 @@
                 buildSprites();
                 measureAnchor();
 
-                /* sample the words at actual CSS pixels: every pixel is a particle */
                 const off=document.createElement('canvas');
                 off.width=cssW; off.height=cssH;
                 const octx=off.getContext('2d');
                 const lineFs=parseFloat(getComputedStyle(document.getElementById('pathLine')).fontSize)||24;
-                const baseCss=lineFs*2.5;
-                const maxW=Math.min(cssW*0.92, 900);
+                const baseCss=lineFs*2;
+                /* keep the word clear of the feather so letterforms never clip */
+                const featherCss=40, marginCss=28;
+                const maxW=Math.min(cssW-2*(featherCss+marginCss), 900);
+                const widths=[];
                 const pxCss=WORDS.map(w=>{
                     octx.font=w.canvasFont(baseCss);
                     try{ octx.letterSpacing=w.spacing; }catch(e){}
                     const mw=octx.measureText(w.text).width||1;
                     try{ octx.letterSpacing='0px'; }catch(e){}
+                    widths.push(mw);
                     return baseCss*Math.min(1, maxW/mw);
                 });
+                const wordW=Math.max.apply(null, widths.map((mw,i)=>mw*(pxCss[i]/baseCss)));
                 sprK=dpr*0.058;
                 pointSets=WORDS.map((w,wi)=>{
                     octx.clearRect(0,0,cssW,cssH);
@@ -756,10 +753,15 @@
                 });
                 POOL=Math.max.apply(null, pointSets.map(s=>s.length).concat([1]));
 
+                /* contained field: a soft cloud around the word line, never the whole viewport */
+                RCX=anchorX*dpr; RCY=anchorY*dpr;
+                RW=(wordW/2+110)*dpr; RH=150*dpr;
+
                 particles=[];
                 for(let i=0;i<POOL;i++){
                     particles.push({
-                        x:rnd(0,W), y:rnd(0,H), vx:0, vy:0, bx:0, by:0, fade:0,
+                        x:RCX+tri()*RW*0.7, y:RCY+tri()*RH*0.7, vx:0, vy:0,
+                        bx:0, by:0, fade:0,
                         join:0, rel:0, released:false,
                         sp:SPRITES[(Math.random()*SPRITES.length)|0],
                         sc:rnd(0.6,1.15), rot:rnd(0,6.283), vr:rnd(-0.9,0.9),
@@ -790,10 +792,8 @@
                 if(ph==='condense'){
                     if(advance!==false && started){ wordIndex=(wordIndex+1)%WORDS.length; assignTargets(wordIndex); }
                     started=true;
-                    /* progressive gather: floating count tracks the ratio going into the text */
-                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random();
+                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random()*0.65;
                 }else if(ph==='degrade'){
-                    /* staggered release: letters visibly decay as cells escape */
                     for(let i=0;i<particles.length;i++){
                         const p=particles[i];
                         p.rel=Math.random()*0.65; p.released=false;
@@ -802,15 +802,14 @@
             }
 
             /* particles fade in once at the start, then never clear */
-            function updateFades(dt, spawn){
+            function updateFades(dt){
                 if(allFaded) return;
                 const k=Math.min(1,dt*4);
                 let min=1;
                 for(let i=0;i<particles.length;i++){
-                    const p=particles[i], before=p.fade;
+                    const p=particles[i];
                     p.fade+=(1-p.fade)*k;
                     if(p.fade<min) min=p.fade;
-                    if(spawn && before<0.08 && p.fade>=0.08) edgeSpawn(p);
                 }
                 if(min>0.99) allFaded=true;
             }
@@ -826,30 +825,32 @@
                 p.x+=p.vx*dt; p.y+=p.vy*dt;
             }
 
-            /* loose flow-field drift with wrap; the "lost" state */
-            function driftLoose(p, dt, tSec){
-                const m=40*dpr;
-                p.vx+=(Math.sin(p.y*0.004+tSec*0.6)*36-p.vx*0.9)*dt;
-                p.vy+=(Math.cos(p.x*0.004-tSec*0.5)*36-p.vy*0.9)*dt;
+            /* drift inside the soft region; the "lost" state stays near the line */
+            function driftRegion(p, dt, tSec){
+                const ccx=RCX+ox, ccy=RCY+oy;
+                const dx=p.x-ccx, dy=p.y-ccy;
+                let ax=Math.sin(p.y*0.004+tSec*0.6)*36-p.vx*0.9;
+                let ay=Math.cos(p.x*0.004-tSec*0.5)*36-p.vy*0.9;
+                const ox2=Math.abs(dx)-RW, oy2=Math.abs(dy)-RH;
+                if(ox2>0) ax-=Math.sign(dx)*ox2*3;
+                if(oy2>0) ay-=Math.sign(dy)*oy2*3;
+                p.vx+=ax*dt; p.vy+=ay*dt;
                 p.x+=p.vx*dt; p.y+=p.vy*dt;
-                if(p.x<-m) p.x=W+m; else if(p.x>W+m) p.x=-m;
-                if(p.y<-m) p.y=H+m; else if(p.y>H+m) p.y=-m;
             }
 
-            /* gather: cells join the word progressively, floaters thin out in ratio */
+            /* gather: cells join the word progressively, mirroring the decay */
             function condenseUpdate(dt, tSec, t){
-                const jt=easeIO(t);
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.02) continue;
-                    if(jt>=p.join) steerOne(p,dt,tSec,30,6.5);
-                    else driftLoose(p,dt,tSec);
+                    if(t>=p.join) steerOne(p,dt,tSec,30,6.5);
+                    else driftRegion(p,dt,tSec);
                 }
             }
 
-            /* tight decay: released cells hug the word instead of sprawling */
+            /* decay: the mirror of the gather — cells escape one by one, hugging the word */
             function degradeUpdate(dt, tSec, t){
-                const cx=anchorX*dpr+ox, cy=anchorY*dpr+oy, m=40*dpr;
+                const cx=anchorX*dpr+ox, cy=anchorY*dpr+oy;
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.02) continue;
@@ -867,21 +868,18 @@
                             continue;
                         }
                     }
-                    p.vx+=((cx-p.x)*3-p.vx*1.4+Math.sin(p.y*0.004+tSec*0.6)*20)*dt;
-                    p.vy+=((cy-p.y)*3-p.vy*1.4+Math.cos(p.x*0.004-tSec*0.5)*20)*dt;
-                    p.x+=p.vx*dt; p.y+=p.vy*dt;
-                    if(p.x<-m) p.x=W+m; else if(p.x>W+m) p.x=-m;
-                    if(p.y<-m) p.y=H+m; else if(p.y>H+m) p.y=-m;
+                    driftRegion(p,dt,tSec);
                 }
             }
 
             function drawActive(tSec){
-                const feather=46*dpr;
+                const feather=40*dpr;
+                const ccx=RCX+ox, ccy=RCY+oy;
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.03) continue;
-                    /* melt the cloud into the page: no visible housing edges */
-                    const ex=Math.min(p.x, W-p.x)/feather, ey=Math.min(p.y, H-p.y)/feather;
+                    /* melt the cloud into the page at the region bounds: no rectangle */
+                    const ex=(RW-Math.abs(p.x-ccx))/feather, ey=(RH-Math.abs(p.y-ccy))/feather;
                     const e=clamp01(Math.min(ex,ey)), edge=e*e*(3-2*e);
                     if(edge<0.02) continue;
                     const a=particleAlpha*p.fade*((1-twA)+twA*Math.sin(p.tw+tSec*p.tws))*edge;
@@ -891,6 +889,13 @@
                     ctx.setTransform(co,si,-si,co,p.x,p.y);
                     const hs=p.sp.width/2;
                     ctx.drawImage(p.sp,-hs,-hs);
+                }
+                if(SHOW_T){
+                    ctx.globalAlpha=0.9; ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#ff0000';
+                    for(let i=0;i<particles.length;i+=7){
+                        const p=particles[i];
+                        ctx.fillRect(p.bx+ox-1.5, p.by+oy-1.5, 3, 3);
+                    }
                 }
                 ctx.globalAlpha=1;
                 ctx.setTransform(1,0,0,1,0,0);
@@ -907,7 +912,7 @@
                 const el=now-phaseStart, t=clamp01(el/DUR[phase]);
 
                 if(phase==='condense'){
-                    updateFades(dt,true);
+                    updateFades(dt);
                     particleAlpha=Math.min(1,particleAlpha+dt*3);
                     twA+=(0.28-twA)*Math.min(1,dt*3);
                     condenseUpdate(dt,tSec,t);
