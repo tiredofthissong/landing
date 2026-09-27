@@ -638,7 +638,7 @@
             });
         });
 
-        /* — path particle morph XII: real type + a living cellular field.
+        /* — path particle morph XIII: real type + soft cellular field (bigger, gentler blobs; tighter band).
            UX read: the hero must SAY three words — legibility is the product.
            So typography does the talking (real canvas type, always crisp) and the
            cells do the living: they rest on the letterforms, stream through each
@@ -657,7 +657,7 @@
                 { text:'Adoption',       font:px=>'italic 900 '+px+'px "Fraunces", serif',       spacing:'0px' },
             ];
             const CYCLE=6000, HOLD_END=4200;   /* 4.2s of readable type, 1.8s melt */
-            const N_ANCHOR=320, N_AMBIENT=880;
+            const N_ANCHOR=240, N_AMBIENT=520;
             const INK='27,25,23', RUST='194,112,61';
             const ctx=canvas.getContext('2d');
 
@@ -678,14 +678,14 @@
                     const a=Math.random()*6.2832, rr=S*(0.10+Math.random()*0.08);
                     const lx=S/2+Math.cos(a)*S*0.10, ly=S/2+Math.sin(a)*S*0.10, rad=rr*2.2;
                     const g=c.createRadialGradient(lx,ly,0,lx,ly,rad);
-                    g.addColorStop(0,'rgba('+core+',0.95)');
-                    g.addColorStop(0.45,'rgba('+core+',0.5)');
+                    g.addColorStop(0,'rgba('+core+',0.55)');
+                    g.addColorStop(0.45,'rgba('+core+',0.28)');
                     g.addColorStop(1,'rgba('+core+',0)');
                     c.fillStyle=g; c.beginPath(); c.arc(lx,ly,rad,0,6.2832); c.fill();
                 }
                 const nx=S/2+rnd(-3,3), ny=S/2+rnd(-3,3), nr=S*0.10;
                 const ng=c.createRadialGradient(nx,ny,0,nx,ny,nr);
-                ng.addColorStop(0,'rgba('+core+',0.5)');
+                ng.addColorStop(0,'rgba('+core+',0.3)');
                 ng.addColorStop(1,'rgba('+core+',0)');
                 c.fillStyle=ng; c.beginPath(); c.arc(nx,ny,nr,0,6.2832); c.fill();
                 return s;
@@ -758,7 +758,7 @@
                 measureWordFont();
                 sampleAnchors();
                 const lc=lineCenter();
-                const RW=Math.min(vw/2-20,470), RH=150;
+                const RW=Math.min(vw/2-20,300), RH=95;
                 parts=[];
                 for(let i=0;i<N_ANCHOR;i++) parts.push({
                     anchor:true, ai:(Math.random()*400)|0,
@@ -790,7 +790,7 @@
                 const introA=smoother(el/900);
 
                 const lc=lineCenter(), lcx=lc[0], lcy=lc[1];
-                const RW=Math.min(window.innerWidth/2-20,470), RH=150;
+                const RW=Math.min(window.innerWidth/2-20,300), RH=95;
 
                 ctx.setTransform(1,0,0,1,0,0);
                 ctx.clearRect(0,0,W,H);
@@ -848,14 +848,14 @@
                 }
 
                 /* — draw the field, feathered at the region bounds: no rectangle — */
-                const sprK=0.075;
+                const sprK=0.32;
                 for(let i=0;i<parts.length;i++){
                     const p=parts[i];
                     const ex=(RW-Math.abs(p.x-lcx))/40, ey=(RH-Math.abs(p.y-lcy))/40;
                     const e=clamp01(Math.min(ex,ey));
                     if(e<0.03) continue;
                     const edge=e*e*(3-2*e);
-                    const a=(0.68+0.32*Math.sin(p.tw+tSec*p.tws))*edge*introA;
+                    const a=(0.40+0.22*Math.sin(p.tw+tSec*p.tws))*edge*introA;
                     if(a<0.04) continue;
                     const rot=p.rot+tSec*p.vr;
                     const co=Math.cos(rot)*p.sc*sprK, si=Math.sin(rot)*p.sc*sprK;
