@@ -638,7 +638,7 @@
             });
         });
 
-        /* — path particle morph IX: contained field, mirrored gather/decay, clipped-safe type — */
+        /* — path particle morph XI: 6s intro through all three words, then scroll-reactive — */
         (function(){
             const stage = document.getElementById('pathStage');
             const canvas = document.getElementById('pathCanvas');
@@ -647,14 +647,15 @@
             const SHOW_T = location.search.indexOf('showtargets')>=0;   /* debug: red dots on targets */
 
             const WORDS = [
-                { text:'IMPLEMENTATION', canvasFont:px=>'700 '+px+'px "Space Grotesk", sans-serif', spacing:'0.18em' },
+                { text:'IMPLEMENTATION', canvasFont:px=>'700 '+px+'px "Space Grotesk", sans-serif', spacing:'0.2em' },
                 { text:'Automation',     canvasFont:px=>'700 '+px+'px "JetBrains Mono", monospace',   spacing:'0px' },
                 { text:'Adoption',       canvasFont:px=>'italic 900 '+px+'px "Fraunces", serif',       spacing:'0px' },
             ];
             const INK='27,25,23', RUST='194,112,61';   /* --ink and --accent, straight from the page tokens */
             let POOL=9000; const PTS_CAP=14000;
-            const ORDER=['condense','settle','hold','degrade'];
-            const DUR={ condense:2400, settle:500, hold:1800, degrade:2400 };   /* gather mirrors decay */
+            const ORDER=['intro','holdA','morph1','holdB','morph2','holdC','scroll'];
+            const NEXT={ intro:'holdA', holdA:'morph1', morph1:'holdB', holdB:'morph2', morph2:'holdC', holdC:'scroll' };
+            const DUR={ intro:1200, holdA:450, morph1:1300, holdB:450, morph2:1300, holdC:900, scroll:1e12 };
             const ctx=canvas.getContext('2d');
 
             let W=0, H=0, dpr=1, cssW=0, cssH=0;
@@ -679,8 +680,8 @@
                     const a=Math.random()*6.2832, rr=S*(0.10+Math.random()*0.08);
                     const lx=S/2+Math.cos(a)*S*0.10, ly=S/2+Math.sin(a)*S*0.10, rad=rr*2.2;
                     const g=c.createRadialGradient(lx,ly,0,lx,ly,rad);
-                    g.addColorStop(0,'rgba('+core+',0.85)');
-                    g.addColorStop(0.6,'rgba('+core+',0.32)');
+                    g.addColorStop(0,'rgba('+core+',0.95)');
+                    g.addColorStop(0.45,'rgba('+core+',0.5)');
                     g.addColorStop(1,'rgba('+core+',0)');
                     c.fillStyle=g; c.beginPath(); c.arc(lx,ly,rad,0,6.2832); c.fill();
                 }
@@ -730,7 +731,7 @@
                     return baseCss*Math.min(1, maxW/mw);
                 });
                 const wordW=Math.max.apply(null, widths.map((mw,i)=>mw*(pxCss[i]/baseCss)));
-                sprK=dpr*0.058;
+                sprK=dpr*0.075;
                 pointSets=WORDS.map((w,wi)=>{
                     octx.clearRect(0,0,cssW,cssH);
                     octx.font=w.canvasFont(pxCss[wi]);
@@ -769,8 +770,7 @@
                     });
                 }
                 allFaded=false;
-                assignTargets(wordIndex);
-                setPhase('condense', false);
+                setPhase('intro');
             }
 
             function assignTargets(wi){
@@ -787,17 +787,14 @@
                 }
             }
 
-            function setPhase(ph, advance){
+            function setPhase(ph){
                 phase=ph; phaseStart=performance.now();
-                if(ph==='condense'){
-                    if(advance!==false && started){ wordIndex=(wordIndex+1)%WORDS.length; assignTargets(wordIndex); }
-                    started=true;
-                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random()*0.6;
-                }else if(ph==='degrade'){
-                    for(let i=0;i<particles.length;i++){
-                        const p=particles[i];
-                        p.rel=Math.random()*0.6; p.released=false;
-                    }
+                if(ph==='intro'){
+                    wordIndex=0; assignTargets(0);
+                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random()*0.5;
+                }else if(ph==='morph1'||ph==='morph2'){
+                    wordIndex=ph==='morph1'?1:2; assignTargets(wordIndex);
+                    for(let i=0;i<particles.length;i++) particles[i].join=Math.random()*0.55;
                 }
             }
 
@@ -853,27 +850,36 @@
                 }
             }
 
-            /* decay: the mirror of the gather — cells escape one by one, hugging the word */
-            function degradeUpdate(dt, tSec, t){
-                const cx=anchorX*dpr+ox, cy=anchorY*dpr+oy;
+            /* morph: the word melts into the next — cells re-target progressively */
+            function morphUpdate(dt, tSec, t){
+                const je=smoother(clamp01(t));
                 for(let i=0;i<particles.length;i++){
                     const p=particles[i];
                     if(p.fade<0.02) continue;
-                    if(!p.released){
-                        if(smoother(clamp01(t))>=p.rel){
-                            p.released=true;
-                            const dx=p.x-cx, dy=p.y-cy, d=Math.hypot(dx,dy)||1;
-                            const sp=rnd(20,55)*dpr;
-                            p.vx=dx/d*sp+rnd(-20,20)*dpr;
-                            p.vy=dy/d*sp+rnd(-20,20)*dpr;
-                        }else{
-                            p.vx+=(((p.bx+ox)-p.x)*36-p.vx*16)*dt;
-                            p.vy+=(((p.by+oy)-p.y)*36-p.vy*16)*dt;
-                            p.x+=p.vx*dt; p.y+=p.vy*dt;
-                            continue;
-                        }
-                    }
-                    driftRegion(p,dt,tSec);
+                    if(je>=p.join) steerOne(p,dt,tSec,34,9);
+                    else driftRegion(p,dt,tSec);
+                }
+            }
+            /* scroll: the finished word holds, but the page stirs it — scroll fast and it streams, rest and it re-forms */
+            let lastSY=null, scrollSm=0;
+            function scrollUpdate(dt, tSec){
+                const sy=window.scrollY||0;
+                if(lastSY===null) lastSY=sy;
+                const sv=Math.max(-5000,Math.min(5000,(sy-lastSY)/Math.max(1,dt*1000)*1000));
+                lastSY=sy;
+                scrollSm+=(sv-scrollSm)*Math.min(1,dt*5);
+                const stir=Math.abs(scrollSm);
+                for(let i=0;i<particles.length;i++){
+                    const p=particles[i];
+                    if(p.fade<0.02) continue;
+                    const tx=(p.bx+ox)-p.x, ty=(p.by+oy)-p.y;
+                    let ax=tx*30-p.vx*12, ay=ty*30-p.vy*12;
+                    ax+=-scrollSm*1.4*p.drift+Math.sin(p.y*0.006+tSec*1.4)*stir*1.1;
+                    ay+=-scrollSm*0.5*p.drift+Math.cos(p.x*0.006-tSec*1.1)*stir*1.1;
+                    p.vx+=ax*dt; p.vy+=ay*dt;
+                    const maxV=900*dpr, s2=p.vx*p.vx+p.vy*p.vy;
+                    if(s2>maxV*maxV){ const s=maxV/Math.sqrt(s2); p.vx*=s; p.vy*=s; }
+                    p.x+=p.vx*dt; p.y+=p.vy*dt;
                 }
             }
 
@@ -916,20 +922,18 @@
 
                 const el=now-phaseStart, t=clamp01(el/DUR[phase]);
 
-                if(phase==='condense'){
+                if(phase==='intro'){
                     updateFades(dt);
                     particleAlpha=Math.min(1,particleAlpha+dt*3);
                     twA+=(0.28-twA)*Math.min(1,dt*3);
                     condenseUpdate(dt,tSec,t);
                     drawActive(tSec);
-                }else if(phase==='settle'){
-                    twA+=(0.06-twA)*Math.min(1,dt*5);
-                    for(let i=0;i<particles.length;i++){
-                        const p=particles[i];
-                        if(p.fade>0.02) steerOne(p,dt,tSec,44,16);
-                    }
+                }else if(phase==='morph1'||phase==='morph2'){
+                    twA+=(0.22-twA)*Math.min(1,dt*3);
+                    particleAlpha=1;
+                    morphUpdate(dt,tSec,t);
                     drawActive(tSec);
-                }else if(phase==='hold'){
+                }else if(phase==='holdA'||phase==='holdB'||phase==='holdC'){
                     twA+=(0.05-twA)*Math.min(1,dt*5);
                     particleAlpha=1;
                     for(let i=0;i<particles.length;i++){
@@ -937,13 +941,13 @@
                         if(p.fade>0.02) steerOne(p,dt,tSec,44,20);   /* the word sits, alive but legible */
                     }
                     drawActive(tSec);
-                }else if(phase==='degrade'){
-                    twA+=(0.28-twA)*Math.min(1,dt*3);
+                }else if(phase==='scroll'){
+                    twA+=(0.10-twA)*Math.min(1,dt*3);
                     particleAlpha=1;
-                    degradeUpdate(dt,tSec,t);
+                    scrollUpdate(dt,tSec);
                     drawActive(tSec);
                 }
-                if(t>=1) setPhase(ORDER[(ORDER.indexOf(phase)+1)%ORDER.length]);
+                if(t>=1 && NEXT[phase]) setPhase(NEXT[phase]);
             }
 
             function observe(){
